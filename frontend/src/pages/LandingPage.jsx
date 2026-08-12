@@ -1,26 +1,37 @@
 import React from 'react';
+import Navbar from '../components/landing/Navbar';
+import HeroSection from '../components/landing/HeroSection';
+import FeaturesSection from '../components/landing/FeaturesSection';
+import BenefitsSection from '../components/landing/BenefitsSection';
+import HowItWorks from '../components/landing/HowItWorks';
+import BusinessFlow from '../components/landing/BusinessFlow';
+import SecuritySection from '../components/landing/SecuritySection';
+import CTASection from '../components/landing/CTASection';
+import Footer from '../components/landing/Footer';
 
+/**
+ * Completely Redesigned SpareFlow SaaS Landing Page.
+ * Modern, responsive B2B SaaS landing page for spare parts inventory management.
+ */
 const LandingPage = () => {
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center py-20">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            SpareFlow
-          </h1>
-          <p className="text-xl text-gray-600 mb-8">
-            Smart Inventory Management System for Spare Parts Shops
-          </p>
-          <div className="flex justify-center gap-4">
-            <button className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700">
-              Start Free Trial
-            </button>
-            <button className="border border-blue-600 text-blue-600 px-6 py-3 rounded-lg hover:bg-blue-50">
-              Login
-            </button>
-          </div>
-        </div>
-      </div>
+    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans selection:bg-blue-600 selection:text-white">
+      {/* Navigation Header */}
+      <Navbar />
+
+      {/* Main Content Sections */}
+      <main>
+        <HeroSection />
+        <FeaturesSection />
+        <BenefitsSection />
+        <HowItWorks />
+        <BusinessFlow />
+        <SecuritySection />
+        <CTASection />
+      </main>
+
+      {/* Footer */}
+      <Footer />
     </div>
   );
 };
