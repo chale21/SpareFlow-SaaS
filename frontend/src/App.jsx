@@ -1,7 +1,8 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext';
 
-// Import pages (to be created)
+// Import pages
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
@@ -19,24 +20,26 @@ import MainLayout from './components/layout/MainLayout';
 
 function App() {
   return (
-    <Router>
-      <Routes>
-        {/* Public routes */}
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-        
-        {/* Protected routes with layout */}
-        <Route path="/dashboard" element={<MainLayout><Dashboard /></MainLayout>} />
-        <Route path="/inventory" element={<MainLayout><Inventory /></MainLayout>} />
-        <Route path="/categories" element={<MainLayout><Categories /></MainLayout>} />
-        <Route path="/suppliers" element={<MainLayout><Suppliers /></MainLayout>} />
-        <Route path="/purchases" element={<MainLayout><Purchases /></MainLayout>} />
-        <Route path="/sales" element={<MainLayout><Sales /></MainLayout>} />
-        <Route path="/reports" element={<MainLayout><Reports /></MainLayout>} />
-        <Route path="/settings" element={<MainLayout><Settings /></MainLayout>} />
-      </Routes>
-    </Router>
+    <AuthProvider>
+      <Router>
+        <Routes>
+          {/* Public routes */}
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          
+          {/* Protected app routes wrapped with MainLayout */}
+          <Route path="/dashboard" element={<MainLayout><Dashboard /></MainLayout>} />
+          <Route path="/inventory" element={<MainLayout><Inventory /></MainLayout>} />
+          <Route path="/categories" element={<MainLayout><Categories /></MainLayout>} />
+          <Route path="/suppliers" element={<MainLayout><Suppliers /></MainLayout>} />
+          <Route path="/purchases" element={<MainLayout><Purchases /></MainLayout>} />
+          <Route path="/sales" element={<MainLayout><Sales /></MainLayout>} />
+          <Route path="/reports" element={<MainLayout><Reports /></MainLayout>} />
+          <Route path="/settings" element={<MainLayout><Settings /></MainLayout>} />
+        </Routes>
+      </Router>
+    </AuthProvider>
   );
 }
 
