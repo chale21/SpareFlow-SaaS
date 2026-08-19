@@ -1,4 +1,5 @@
 const express = require('express');
+const { body } = require('express-validator');
 
 const router = express.Router();
 
@@ -10,12 +11,22 @@ const {
 const {
     authenticateUser
 } = require('../middleware/auth');
+const validate = require('../middleware/validate');
 
 
 // POST /api/v1/auth/register
 // Register a new user
 // Public
-router.post('/register', register);
+router.post(
+    '/register',
+    validate([
+        body('name').trim().notEmpty().withMessage('Name is required'),
+        body('email').isEmail().withMessage('Valid email is required'),
+        body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
+        body('companyId').notEmpty().withMessage('companyId is required')
+    ]),
+    register
+);
 
 
 // POST /api/v1/auth/login
