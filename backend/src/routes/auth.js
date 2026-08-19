@@ -1,47 +1,56 @@
+/**
+ * Authentication Routes
+ * 
+ * POST   /api/v1/auth/register        - Register new company
+ * POST   /api/v1/auth/login           - Login user
+ * POST   /api/v1/auth/logout          - Logout user
+ * POST   /api/v1/auth/forgot-password - Request password reset
+ * POST   /api/v1/auth/reset-password  - Reset password
+ * GET    /api/v1/auth/profile         - Get user profile
+ */
+
 const express = require('express');
 const router = express.Router();
 const { authenticateUser } = require('../middleware/auth');
+const { authRateLimiter } = require('../middleware/security');
+const {
+  validateRegister,
+  validateLogin,
+  validateRefreshToken,
+  validateForgotPassword,
+  validateResetPassword
+} = require('../middleware/validate');
+const authController = require('../controllers/authController');
 
 // @route   POST /api/v1/auth/register
-// @desc    Register new company
+// @desc    Register new company and owner account
 // @access  Public
-router.post('/register', (req, res) => {
-  res.status(200).json({ message: 'Register endpoint - To be implemented' });
-});
+router.post('/register', authRateLimiter, validateRegister, authController.register);
 
 // @route   POST /api/v1/auth/login
-// @desc    Login user
+// @desc    Login user with email and password
 // @access  Public
-router.post('/login', (req, res) => {
-  res.status(200).json({ message: 'Login endpoint - To be implemented' });
-});
+router.post('/login', authRateLimiter, validateLogin, authController.login);
 
 // @route   POST /api/v1/auth/logout
 // @desc    Logout user
-// @access  Private
-router.post('/logout', authenticateUser, (req, res) => {
-  res.status(200).json({ message: 'Logout endpoint - To be implemented' });
-});
+// @access  Private (Authenticated)
+router.post('/refresh', authRateLimiter, validateRefreshToken, authController.refresh);
+router.post('/logout', authenticateUser, authController.logout);
 
 // @route   POST /api/v1/auth/forgot-password
-// @desc    Request password reset
+// @desc    Request password reset - sends reset link to email
 // @access  Public
-router.post('/forgot-password', (req, res) => {
-  res.status(200).json({ message: 'Forgot password endpoint - To be implemented' });
-});
+router.post('/forgot-password', authRateLimiter, validateForgotPassword, authController.forgotPassword);
 
 // @route   POST /api/v1/auth/reset-password
-// @desc    Reset password
+// @desc    Reset password using reset token
 // @access  Public
-router.post('/reset-password', (req, res) => {
-  res.status(200).json({ message: 'Reset password endpoint - To be implemented' });
-});
+router.post('/reset-password', authRateLimiter, validateResetPassword, authController.resetPassword);
 
 // @route   GET /api/v1/auth/profile
 // @desc    Get logged-in user profile
-// @access  Private
-router.get('/profile', authenticateUser, (req, res) => {
-  res.status(200).json({ message: 'Profile endpoint - To be implemented' });
-});
+// @access  Private (Authenticated)
+router.get('/profile', authenticateUser, authController.profile);
 
 module.exports = router;
