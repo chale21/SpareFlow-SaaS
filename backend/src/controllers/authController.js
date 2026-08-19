@@ -11,8 +11,7 @@ const register = async (req, res) => {
             name,
             email,
             password,
-            companyId,
-            role
+            companyId
         } = req.body;
 
         // Validate required fields
@@ -33,9 +32,8 @@ const register = async (req, res) => {
             });
         }
 
-        // Check existing user in the company
+        // Check existing user by email globally
         const existingUser = await User.findOne({
-            companyId,
             email: email.toLowerCase()
         });
 
@@ -49,13 +47,12 @@ const register = async (req, res) => {
         // Hash password
         const hashedPassword = await bcrypt.hash(password, 12);
 
-        // Create user
+        // Create user (do not trust role from client; use model default)
         const user = await User.create({
             companyId,
             name,
             email: email.toLowerCase(),
-            password: hashedPassword,
-            role: role || 'STAFF'
+            password: hashedPassword
         });
 
         // Generate JWT
