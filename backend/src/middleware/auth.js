@@ -10,7 +10,7 @@ const authenticateUser = (req, res, next) => {
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
             return res.status(401).json({
                 success: false,
-                message: 'Access denied. No token provided.'
+                message: 'Authentication required'
             });
         }
 
@@ -30,7 +30,7 @@ const authenticateUser = (req, res, next) => {
     } catch (error) {
         return res.status(401).json({
             success: false,
-            message: 'Invalid or expired token.'
+            message: 'Authentication required'
         });
     }
 };
@@ -46,7 +46,7 @@ const isShopOwner = (req, res, next) => {
 
     return res.status(403).json({
         success: false,
-        message: 'Access denied. Shop Owner role required.'
+        message: 'Access denied. Insufficient permissions.'
     });
 };
 
@@ -61,7 +61,7 @@ const isSuperAdmin = (req, res, next) => {
 
     return res.status(403).json({
         success: false,
-        message: 'Access denied. Super Admin role required.'
+        message: 'Access denied. Insufficient permissions.'
     });
 };
 
@@ -76,14 +76,39 @@ const isStaff = (req, res, next) => {
 
     return res.status(403).json({
         success: false,
-        message: 'Access denied. Staff role required.'
+        message: 'Access denied. Insufficient permissions.'
     });
 };
 
 
+// Generic role authorization middleware factory
+// Usage: authorizeRoles('SUPER_ADMIN'), authorizeRoles('SHOP_OWNER','STAFF')
+// Allows access if req.user.role matches one of the provided roles.
+const authorizeRoles = (...roles) => {
+  return (req, res, next) => {
+    // Ensure user is authenticated
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required'
+      });
+    }
+
+    if (!roles.includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Insufficient permissions.'
+      });
+    }
+
+    return next();
+  };
+};
+
 module.exports = {
-    authenticateUser,
-    isShopOwner,
-    isSuperAdmin,
-    isStaff
+  authenticateUser,
+  authorizeRoles,
+  isShopOwner,
+  isSuperAdmin,
+  isStaff
 };
