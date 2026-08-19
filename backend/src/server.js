@@ -7,6 +7,7 @@ const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 
 const { errorHandler } = require('./middleware/errorHandler');
+const logger = require('./utils/logger');
 
 // Import routes
 const authRoutes = require('./routes/auth');
@@ -39,8 +40,8 @@ const limiter = rateLimit({
 });
 app.use('/api/', limiter);
 
-// Logging middleware
-app.use(morgan('dev'));
+// HTTP request logging middleware
+app.use(morgan(':method :url :status :response-time ms'));
 
 // Body parsing middleware
 app.use(express.json());
@@ -51,8 +52,8 @@ mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
-.then(() => console.log('MongoDB connected successfully'))
-.catch((err) => console.error('MongoDB connection error:', err));
+.then(() => logger.info('MongoDB connected successfully'))
+.catch((err) => logger.error('MongoDB connection error', { message: err.message }));
 
 // API Routes
 app.use('/api/v1/auth', authRoutes);
@@ -89,8 +90,8 @@ app.use(errorHandler);
 // Start server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-  console.log(`Environment: ${process.env.NODE_ENV}`);
+  logger.info(`Server is running on port ${PORT}`);
+  logger.info(`Environment: ${process.env.NODE_ENV}`);
 });
 
 module.exports = app;
