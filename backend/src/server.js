@@ -6,6 +6,8 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 
+const { errorHandler } = require('./middleware/errorHandler');
+
 // Import routes
 const authRoutes = require('./routes/auth');
 const companyRoutes = require('./routes/company');
@@ -82,14 +84,7 @@ app.use((req, res) => {
 });
 
 // Error handling middleware
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(err.status || 500).json({
-    success: false,
-    message: err.message || 'Internal server error',
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
-  });
-});
+app.use(errorHandler);
 
 // Start server
 const PORT = process.env.PORT || 5000;
