@@ -10,6 +10,7 @@
  */
 
 const express = require('express');
+
 const router = express.Router();
 const { authenticateUser } = require('../middleware/auth');
 const { authRateLimiter } = require('../middleware/security');
@@ -52,5 +53,6 @@ router.post('/reset-password', authRateLimiter, validateResetPassword, authContr
 // @desc    Get logged-in user profile
 // @access  Private (Authenticated)
 router.get('/profile', authenticateUser, authController.profile);
+
 
 module.exports = router;
