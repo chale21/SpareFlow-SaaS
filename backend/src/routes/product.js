@@ -1,34 +1,23 @@
 const express = require('express');
 const router = express.Router();
 const { authenticateUser } = require('../middleware/auth');
+const { filterByCompany } = require('../middleware/tenant');
+const { isShopOwner, isCompanyUser } = require('../middleware/role');
+const { validateAddProduct, validateUpdateProduct, validateMongoId } = require('../middleware/validate');
+const productController = require('../controllers/productController');
 
 // Product/Inventory management routes
-router.get('/', authenticateUser, (req, res) => {
-  res.status(200).json({ message: 'Get products endpoint - To be implemented' });
-});
+router.use(authenticateUser, filterByCompany);
+router.get('/search', isCompanyUser, productController.list);
+router.get('/low-stock', isCompanyUser, (req, res, next) => { req.query.lowStock = 'true'; next(); }, productController.list);
+router.get('/out-of-stock', isCompanyUser, (req, res, next) => { req.query.outOfStock = 'true'; next(); }, productController.list);
+router.get('/', isCompanyUser, productController.list);
+router.get('/:id', isCompanyUser, validateMongoId(), productController.get);
 
-router.post('/', authenticateUser, (req, res) => {
-  res.status(200).json({ message: 'Add product endpoint - To be implemented' });
-});
+router.post('/', isShopOwner, validateAddProduct, productController.create);
 
-router.put('/:id', authenticateUser, (req, res) => {
-  res.status(200).json({ message: 'Update product endpoint - To be implemented' });
-});
+router.put('/:id', isCompanyUser, validateUpdateProduct, productController.update);
 
-router.delete('/:id', authenticateUser, (req, res) => {
-  res.status(200).json({ message: 'Delete product endpoint - To be implemented' });
-});
-
-router.get('/search', authenticateUser, (req, res) => {
-  res.status(200).json({ message: 'Search products endpoint - To be implemented' });
-});
-
-router.get('/low-stock', authenticateUser, (req, res) => {
-  res.status(200).json({ message: 'Low stock products endpoint - To be implemented' });
-});
-
-router.get('/out-of-stock', authenticateUser, (req, res) => {
-  res.status(200).json({ message: 'Out of stock products endpoint - To be implemented' });
-});
+router.delete('/:id', isShopOwner, validateMongoId(), productController.remove);
 
 module.exports = router;

@@ -1,283 +1,36 @@
-# Contributing to SpareFlow
+# SpareFlow SaaS — Project Structure
 
-Thank you for contributing to **SpareFlow SaaS**.
+This document defines the architecture and organization of the SpareFlow SaaS project.
 
-This document defines the development workflow, Git strategy, coding standards, Pull Request process, testing expectations, and team responsibilities for the project.
+SpareFlow is a multi-tenant spare parts and inventory management platform built with React.js, Node.js, Express.js, MongoDB, and related technologies.
 
-All team members should read and follow these guidelines before starting development.
-
----
-
-# Development Team
-
-## Team Leader & Frontend Lead
-
-**Chalachew Akilew**
-
-## Frontend Developer
-
-**Silitu Agalu**
-
-## Backend Developer 1
-
-**Husinia**
-
-## Backend Developer 2
-
-**Hayatt**
-
-SpareFlow is developed by a team of **four developers**.
+The structure is designed to support the four-person development team and allow the project to grow without creating unnecessary complexity.
 
 ---
 
-# Development Principles
-
-All contributors should follow these principles:
-
-* Write clean and readable code.
-* Keep features modular.
-* Avoid unnecessary duplication.
-* Follow the existing project structure.
-* Protect company/tenant data.
-* Validate user input.
-* Handle errors properly.
-* Test features before creating Pull Requests.
-* Keep commits meaningful.
-* Do not commit secrets.
-* Review other team members' code carefully.
-
----
-
-# Git Branch Strategy
-
-SpareFlow uses the following branch structure:
+# 1. Root Structure
 
 ```text
-main
-  ↑
-  │
-develop
-  ↑
-  ├── feature/*
-  ├── bugfix/*
-  └── hotfix/*
-```
-
-## Main Branch
-
-`main` contains stable, production-ready code.
-
-Developers must **not push directly to `main`**.
-
-Changes should reach `main` through a Pull Request from `develop`.
-
----
-
-## Develop Branch
-
-`develop` is the main integration branch for ongoing development.
-
-Completed features are merged into `develop` after code review.
-
-Developers should **not push directly to `develop`**.
-
----
-
-## Feature Branches
-
-Feature branches are used for new functionality.
-
-Naming convention:
-
-```text
-feature/feature-name
-```
-
-Examples:
-
-```text
-feature/authentication
-feature/inventory-management
-feature/supplier-management
-feature/sales-module
-feature/dashboard
+SpareFlow-SaaS/
+│
+├── README.md
+├── .gitignore
+│
+├── frontend/
+│
+├── backend/
+│
+├── docs/
+│   ├── CONTRIBUTING.md
+│   └── PROJECT_STRUCTURE.md
+│
+└── .github/
+    └── workflows/
 ```
 
 ---
 
-## Bugfix Branches
-
-Use:
-
-```text
-bugfix/bug-description
-```
-
-Examples:
-
-```text
-bugfix/login-validation
-bugfix/stock-calculation
-bugfix/invoice-total
-```
-
----
-
-## Hotfix Branches
-
-Use:
-
-```text
-hotfix/critical-fix
-```
-
-Hotfixes are reserved for urgent problems affecting stable/production code.
-
----
-
-# Development Workflow
-
-Before starting a task:
-
-```bash
-git checkout develop
-git pull origin develop
-```
-
-Create a feature branch:
-
-```bash
-git checkout -b feature/your-feature-name
-```
-
-Example:
-
-```bash
-git checkout -b feature/inventory-management
-```
-
-Work on your task and test it.
-
-Then:
-
-```bash
-git add .
-git commit -m "feat: add inventory management"
-```
-
-Push your branch:
-
-```bash
-git push -u origin feature/inventory-management
-```
-
-Create a Pull Request:
-
-```text
-feature/inventory-management
-            ↓
-         develop
-```
-
-After review and approval, the Pull Request can be merged.
-
----
-
-# Pull Request Process
-
-Every feature must go through a Pull Request.
-
-## Process
-
-1. Create a branch from `develop`.
-2. Implement the assigned task.
-3. Test your changes locally.
-4. Commit your changes.
-5. Push the feature branch.
-6. Create a Pull Request to `develop`.
-7. Request review.
-8. Address review comments.
-9. Wait for approval.
-10. Merge into `develop`.
-
-The Team Leader is responsible for coordinating reviews and ensuring that the code meets project standards.
-
----
-
-# Main Branch Release Process
-
-The normal development flow is:
-
-```text
-feature branch
-      ↓
-   Pull Request
-      ↓
-   develop
-      ↓
-Integration Testing
-      ↓
-Release Testing
-      ↓
-Pull Request
-      ↓
-     main
-```
-
-`main` should contain only stable and release-ready code.
-
----
-
-# Commit Guidelines
-
-SpareFlow follows the **Conventional Commits** style.
-
-## Feature
-
-```text
-feat: add inventory management
-```
-
-## Bug Fix
-
-```text
-fix: resolve incorrect stock calculation
-```
-
-## Documentation
-
-```text
-docs: update contributing guidelines
-```
-
-## Refactoring
-
-```text
-refactor: improve product service
-```
-
-## Tests
-
-```text
-test: add authentication API tests
-```
-
-## Chore
-
-```text
-chore: update dependencies
-```
-
-Keep commit messages:
-
-* Short
-* Clear
-* Specific
-* Related to one logical change
-
----
-
-# Frontend Standards
+# 2. Frontend Structure
 
 SpareFlow uses:
 
@@ -291,102 +44,293 @@ SpareFlow uses:
 * Context API
 * Chart.js
 
-## React
+There is **no TypeScript** in this project.
 
-Use functional components and hooks.
-
-Preferred:
-
-```jsx
-function ProductList() {
-  return (
-    <div>
-      Product List
-    </div>
-  );
-}
-
-export default ProductList;
-```
-
-Avoid unnecessary class components.
-
-## Component Organization
-
-Reusable components should be placed in:
+Therefore, the frontend does not contain a `types/` directory.
 
 ```text
-frontend/src/components/
+frontend/
+│
+├── package.json
+├── vite.config.js
+├── .env.example
+├── index.html
+│
+├── public/
+│
+└── src/
+    │
+    ├── main.jsx
+    ├── App.jsx
+    ├── index.css
+    │
+    ├── assets/
+    │   ├── images/
+    │   └── icons/
+    │
+    ├── components/
+    │   ├── common/
+    │   ├── forms/
+    │   ├── layout/
+    │   ├── admin/
+    │   ├── inventory/
+    │   ├── products/
+    │   ├── suppliers/
+    │   ├── purchases/
+    │   ├── sales/
+    │   ├── dashboard/
+    │   └── notifications/
+    │
+    ├── pages/
+    │   ├── admin/
+    │   │   ├── AdminDashboard.jsx
+    │   │   ├── Companies.jsx
+    │   │   ├── Users.jsx
+    │   │   ├── SystemLogs.jsx
+    │   │   └── PlatformSettings.jsx
+    │   │
+    │   ├── LandingPage.jsx
+    │   ├── LoginPage.jsx
+    │   ├── RegisterPage.jsx
+    │   ├── ForgotPasswordPage.jsx
+    │   ├── Dashboard.jsx
+    │   ├── Inventory.jsx
+    │   ├── Categories.jsx
+    │   ├── Suppliers.jsx
+    │   ├── Purchases.jsx
+    │   ├── Sales.jsx
+    │   ├── StockMovements.jsx
+    │   ├── Notifications.jsx
+    │   ├── Reports.jsx
+    │   ├── Settings.jsx
+    │   └── NotFound.jsx
+    │
+    ├── services/
+    │
+    ├── context/
+    │
+    ├── hooks/
+    │
+    └── utils/
 ```
 
-Page-level components should be placed in:
+---
+
+# 3. Frontend Directory Responsibilities
+
+## `components/`
+
+Contains reusable UI components.
 
 ```text
-frontend/src/pages/
+components/
+├── common/
+├── forms/
+├── layout/
+├── admin/
+├── inventory/
+├── products/
+├── suppliers/
+├── purchases/
+├── sales/
+├── dashboard/
+└── notifications/
 ```
 
-API communication should be placed in:
+### `common/`
+
+General reusable components such as:
+
+```text
+Button
+Input
+Modal
+Loading
+ErrorMessage
+ConfirmDialog
+```
+
+### `forms/`
+
+Reusable forms such as:
+
+```text
+LoginForm
+RegisterForm
+ProductForm
+PurchaseForm
+SalesForm
+```
+
+### `layout/`
+
+Application layout components:
+
+```text
+MainLayout
+Navbar
+Sidebar
+Footer
+```
+
+### Feature Components
+
+Feature-specific components should be organized according to their module.
+
+For example:
+
+```text
+components/inventory/
+components/products/
+components/suppliers/
+components/purchases/
+components/sales/
+```
+
+---
+
+# 4. Frontend Pages
+
+The `pages/` directory contains page-level React components.
+
+Main application pages include:
+
+```text
+LandingPage.jsx
+LoginPage.jsx
+RegisterPage.jsx
+ForgotPasswordPage.jsx
+Dashboard.jsx
+Inventory.jsx
+Categories.jsx
+Suppliers.jsx
+Purchases.jsx
+Sales.jsx
+StockMovements.jsx
+Notifications.jsx
+Reports.jsx
+Settings.jsx
+NotFound.jsx
+```
+
+---
+
+# 5. Super Admin Frontend
+
+Super Admin functionality is separated from normal shop operations.
+
+```text
+pages/admin/
+├── AdminDashboard.jsx
+├── Companies.jsx
+├── Users.jsx
+├── SystemLogs.jsx
+└── PlatformSettings.jsx
+```
+
+The Super Admin can:
+
+* Manage companies
+* Activate/suspend companies
+* Monitor platform activity
+* View system statistics
+* View system logs
+* Manage global settings
+
+---
+
+# 6. Frontend Services
+
+API communication should be organized in:
 
 ```text
 frontend/src/services/
 ```
 
----
-
-# Styling Standards
-
-SpareFlow uses **Tailwind CSS v4**.
-
-Use Tailwind utility classes for styling.
-
-Avoid introducing another CSS framework without team approval.
-
-Keep reusable styling patterns organized and consistent.
-
----
-
-# API Communication
-
-Use Axios for API communication.
-
-API-related logic should be placed in:
+Recommended services include:
 
 ```text
-frontend/src/services/
+api.js
+authService.js
+companyService.js
+userService.js
+productService.js
+categoryService.js
+supplierService.js
+purchaseService.js
+salesService.js
+reportService.js
+dashboardService.js
+notificationService.js
 ```
 
-Do not duplicate API request logic unnecessarily across components.
+These files communicate with the backend REST API.
 
 ---
 
-# Loading and Error States
+# 7. Frontend Context
 
-Frontend features that communicate with the backend should provide appropriate:
-
-* Loading states
-* Success feedback
-* Error messages
-* Empty states
-
-Example:
+React Context is used for application-level state.
 
 ```text
-Loading...
+frontend/src/context/
+├── AuthContext.jsx
+└── AppContext.jsx
 ```
 
-```text
-No products found.
-```
+`AuthContext` can manage:
+
+* Current user
+* Authentication state
+* Login
+* Logout
+* User role
+* Company information
+
+---
+
+# 8. Frontend Hooks
+
+Custom React hooks belong in:
 
 ```text
-Failed to load products.
+frontend/src/hooks/
+```
+
+Examples:
+
+```text
+useAuth.js
+useFetch.js
+useDebounce.js
+```
+
+Only create a custom hook when it provides reusable functionality.
+
+---
+
+# 9. Frontend Utilities
+
+Reusable utility functions belong in:
+
+```text
+frontend/src/utils/
+```
+
+Examples:
+
+```text
+constants.js
+validators.js
+formatters.js
+storage.js
 ```
 
 ---
 
-# Backend Standards
+# 10. Backend Structure
 
-SpareFlow uses:
+The backend uses:
 
 * Node.js
 * Express.js
@@ -395,12 +339,365 @@ SpareFlow uses:
 * JWT
 * Bcrypt
 
-Follow this general backend flow:
+Structure:
 
 ```text
+backend/
+│
+├── package.json
+├── .env.example
+│
+└── src/
+    │
+    ├── server.js
+    │
+    ├── config/
+    │
+    ├── controllers/
+    │
+    ├── models/
+    │
+    ├── routes/
+    │
+    ├── middleware/
+    │
+    ├── services/
+    │
+    └── utils/
+```
+
+---
+
+# 11. Backend Configuration
+
+```text
+backend/src/config/
+├── database.js
+└── env.js
+```
+
+### `database.js`
+
+Responsible for MongoDB connection configuration.
+
+### `env.js`
+
+Responsible for reading and validating environment configuration where appropriate.
+
+---
+
+# 12. Backend Models
+
+The database models represent the main entities of SpareFlow.
+
+```text
+backend/src/models/
+├── Company.js
+├── User.js
+├── Category.js
+├── Product.js
+├── Supplier.js
+├── Purchase.js
+├── Sale.js
+├── StockMovement.js
+├── Notification.js
+└── AuditLog.js
+```
+
+---
+
+# 13. Company Model
+
+`Company.js` represents a tenant/business using SpareFlow.
+
+A company may contain:
+
+* Company name
+* Contact information
+* Address
+* Status
+* Subscription information
+* Timestamps
+
+---
+
+# 14. User Model
+
+`User.js` represents users belonging to a company.
+
+Users have roles such as:
+
+```text
+SUPER_ADMIN
+SHOP_OWNER
+STAFF
+```
+
+A normal business user belongs to a specific company.
+
+---
+
+# 15. Tenant Data
+
+Company-owned records should contain:
+
+```text
+companyId
+```
+
+Examples:
+
+```text
+Product
+Supplier
+Purchase
+Sale
+Category
+StockMovement
+Notification
+```
+
+The `companyId` is used to enforce tenant isolation.
+
+---
+
+# 16. Product Model
+
+`Product.js` represents spare parts and inventory items.
+
+Possible fields include:
+
+```text
+name
+SKU
+category
+description
+quantity
+costPrice
+sellingPrice
+minimumStock
+maximumStock
+supplier
+companyId
+```
+
+---
+
+# 17. Stock Movement Model
+
+`StockMovement.js` records inventory changes.
+
+Movement types include:
+
+```text
+STOCK_IN
+STOCK_OUT
+ADJUSTMENT
+```
+
+Stock movements may be generated by:
+
+* Purchases
+* Sales
+* Manual adjustments
+
+---
+
+# 18. Notification Model
+
+`Notification.js` stores important user/company notifications.
+
+Examples:
+
+```text
+LOW_STOCK
+SYSTEM_NOTIFICATION
+BUSINESS_NOTIFICATION
+```
+
+---
+
+# 19. Audit Log Model
+
+`AuditLog.js` records important system activities.
+
+Examples:
+
+```text
+LOGIN
+LOGOUT
+CREATE_PRODUCT
+UPDATE_PRODUCT
+DELETE_PRODUCT
+CREATE_PURCHASE
+CREATE_SALE
+STOCK_ADJUSTMENT
+PASSWORD_CHANGE
+```
+
+Audit logs support security and traceability.
+
+---
+
+# 20. Backend Controllers
+
+Controllers handle HTTP requests and responses.
+
+```text
+backend/src/controllers/
+├── authController.js
+├── companyController.js
+├── userController.js
+├── categoryController.js
+├── productController.js
+├── supplierController.js
+├── purchaseController.js
+├── salesController.js
+├── reportController.js
+├── dashboardController.js
+└── notificationController.js
+```
+
+---
+
+# 21. Backend Routes
+
+REST API routes are organized in:
+
+```text
+backend/src/routes/
+├── auth.js
+├── company.js
+├── user.js
+├── category.js
+├── product.js
+├── supplier.js
+├── purchase.js
+├── sales.js
+├── report.js
+├── dashboard.js
+└── notification.js
+```
+
+Example:
+
+```text
+/api/v1/auth
+/api/v1/companies
+/api/v1/users
+/api/v1/products
+/api/v1/categories
+/api/v1/suppliers
+/api/v1/purchases
+/api/v1/sales
+/api/v1/reports
+/api/v1/dashboard
+/api/v1/notifications
+```
+
+---
+
+# 22. Middleware
+
+Middleware is located in:
+
+```text
+backend/src/middleware/
+```
+
+Recommended middleware:
+
+```text
+auth.js
+role.js
+tenant.js
+validate.js
+errorHandler.js
+```
+
+## `auth.js`
+
+Verifies JWT authentication.
+
+## `role.js`
+
+Checks whether the authenticated user has the required role.
+
+## `tenant.js`
+
+Ensures users can access only data belonging to their company.
+
+## `validate.js`
+
+Validates incoming request data.
+
+## `errorHandler.js`
+
+Provides centralized error handling.
+
+---
+
+# 23. Backend Services
+
+Business logic belongs in:
+
+```text
+backend/src/services/
+```
+
+Recommended services:
+
+```text
+authService.js
+companyService.js
+userService.js
+productService.js
+supplierService.js
+purchaseService.js
+salesService.js
+reportService.js
+dashboardService.js
+notificationService.js
+auditService.js
+```
+
+---
+
+# 24. Backend Utilities
+
+Reusable backend utilities belong in:
+
+```text
+backend/src/utils/
+```
+
+Examples:
+
+```text
+generateToken.js
+password.js
+response.js
+logger.js
+```
+
+---
+
+# 25. Request Processing Flow
+
+A normal API request should follow:
+
+```text
+Client
+  ↓
 Route
   ↓
-Middleware
+Authentication Middleware
+  ↓
+Tenant Middleware
+  ↓
+Role Middleware
+  ↓
+Validation Middleware
   ↓
 Controller
   ↓
@@ -413,369 +710,374 @@ MongoDB
 
 ---
 
-# Controllers
+# 26. Multi-Tenant Security Flow
 
-Controllers should handle HTTP requests and responses.
-
-Business logic should not unnecessarily be placed directly inside route files.
-
-Controllers are located in:
+For company-owned data:
 
 ```text
-backend/src/controllers/
+User Login
+    ↓
+JWT Generated
+    ↓
+JWT Verified
+    ↓
+User Identified
+    ↓
+Company Identified
+    ↓
+Role Checked
+    ↓
+Company Data Filtered
+    ↓
+Request Processed
 ```
+
+A user from Company A must never receive data from Company B.
 
 ---
 
-# Services
+# 27. Documentation
 
-Business logic should be organized inside:
+Documentation is stored in:
 
 ```text
-backend/src/services/
+docs/
+├── CONTRIBUTING.md
+└── PROJECT_STRUCTURE.md
 ```
 
-Services should contain reusable business operations.
-
----
-
-# Database Standards
-
-MongoDB is accessed through Mongoose.
-
-Database models are located in:
+Additional documentation can be added as the project grows, for example:
 
 ```text
-backend/src/models/
+API.md
+DATABASE.md
+DEPLOYMENT.md
 ```
 
-Use:
-
-* Schema validation
-* Appropriate indexes
-* Appropriate references
-* Meaningful field names
+These should be created when the relevant documentation is actually available rather than creating empty placeholder files.
 
 ---
 
-# Multi-Tenant Security
+# 28. GitHub Workflows
 
-Multi-tenancy is one of the most important requirements of SpareFlow.
-
-Every company-owned record must be associated with the appropriate company/tenant.
-
-Example:
+GitHub Actions workflows are stored in:
 
 ```text
-companyId
+.github/workflows/
 ```
 
-Users must only be able to access data belonging to their company.
-
-The backend must never trust a company ID supplied by the client without validating the authenticated user's tenant.
-
-The general security flow should be:
+Potential workflows include:
 
 ```text
-Request
-   ↓
-JWT Authentication
-   ↓
-Identify User
-   ↓
-Identify User's Company
-   ↓
-Check Role
-   ↓
-Apply Tenant Restriction
-   ↓
-Access Company Data
+frontend.yml
+backend.yml
 ```
 
----
+These can later be used for:
 
-# Authentication
+* Automated testing
+* Build verification
+* Linting
+* Continuous integration
+* Deployment automation
 
-Authentication uses JWT.
-
-Passwords must be hashed using Bcrypt.
-
-Never store plain-text passwords.
-
-Private API endpoints must require authentication.
+Workflows should be added when the team has configured CI/CD.
 
 ---
 
-# Role-Based Access Control
+# 29. Initial Repository Structure
 
-SpareFlow has three roles:
+At the beginning of the project, do not create every future source file.
+
+The initial repository should contain the actual project foundation:
 
 ```text
-SUPER_ADMIN
-SHOP_OWNER
-STAFF
+SpareFlow-SaaS/
+│
+├── README.md
+├── .gitignore
+│
+├── frontend/
+│   ├── package.json
+│   ├── vite.config.js
+│   ├── .env.example
+│   ├── index.html
+│   └── src/
+│       ├── main.jsx
+│       ├── App.jsx
+│       ├── index.css
+│       ├── assets/
+│       ├── components/
+│       ├── pages/
+│       ├── services/
+│       ├── context/
+│       ├── hooks/
+│       └── utils/
+│
+├── backend/
+│   ├── package.json
+│   ├── .env.example
+│   └── src/
+│       ├── server.js
+│       ├── config/
+│       ├── controllers/
+│       ├── models/
+│       ├── routes/
+│       ├── middleware/
+│       ├── services/
+│       └── utils/
+│
+├── docs/
+│   ├── CONTRIBUTING.md
+│   └── PROJECT_STRUCTURE.md
+│
+└── .github/
+    └── workflows/
 ```
 
-Authorization must be checked on the backend.
-
-Frontend restrictions alone are not sufficient for security.
+Feature-specific files should be created when developers begin implementing the relevant module.
 
 ---
 
-# Data Isolation
+# 30. Development Schedule
 
-Developers must ensure that one company cannot access another company's:
+## Week 1 — Project Setup & Architecture
 
-* Products
-* Categories
-* Suppliers
-* Purchases
-* Sales
-* Stock movements
-* Reports
-* Users
-* Notifications
-* Other private business data
+### Team Leader / Frontend Lead — Chalachew
 
-Tenant isolation must be enforced on the server side.
-
----
-
-# Stock Management
-
-Inventory changes must be handled carefully.
-
-Stock can change through:
-
-* Purchases
-* Sales
-* Stock adjustments
-
-Important stock changes should create appropriate stock movement records.
-
-Do not update stock without considering the corresponding stock movement history.
-
----
-
-# Validation
-
-Validate data received from users before processing it.
-
-Validation should be applied to:
-
-* Authentication
-* Products
-* Categories
-* Suppliers
-* Purchases
-* Sales
-* User management
-* Company management
-
-Never rely only on frontend validation.
-
----
-
-# Error Handling
-
-Backend errors should be handled consistently.
-
-Do not expose sensitive information such as:
-
-* Database credentials
-* JWT secrets
-* Internal server details
-* Password information
-
-Use appropriate HTTP status codes.
-
----
-
-# Environment Variables
-
-Never commit `.env` files.
-
-Use:
-
-```text
-.env.example
-```
-
-to document required environment variables.
-
-Example:
-
-```env
-PORT=5000
-MONGO_URI=
-JWT_SECRET=
-CLIENT_URL=
-NODE_ENV=development
-```
-
----
-
-# Testing
-
-Developers should test their work before creating a Pull Request.
-
-Testing should include:
-
-## Frontend
-
-* Component behavior
-* Forms
-* Navigation
-* Loading states
-* Error states
-* Responsive layouts
-
-## Backend
-
-* Authentication
-* Authorization
-* API endpoints
-* Validation
-* Database operations
-* Tenant isolation
-* Error handling
-
-## API Testing
-
-Use **Postman** or another API testing tool to test REST APIs.
-
----
-
-# Code Review
-
-Every Pull Request should be reviewed before merging.
-
-Reviewers should check:
-
-* Code quality
-* Correctness
-* Security
-* Multi-tenant isolation
-* Role permissions
-* Performance
-* Error handling
-* Validation
-* Naming conventions
-* Documentation
-* Testing
-
-At least one team member should review a Pull Request before it is merged.
-
----
-
-# Communication
-
-The team should use:
-
-* **GitHub Issues** - Bugs, tasks, and feature tracking
-* **GitHub Pull Requests** - Code review
-* **Telegram** - Quick communication
-* **Weekly team meeting** - Progress review and planning
-
-Developers should report blockers early instead of waiting until the end of the week.
-
----
-
-# Task Management
-
-Each developer should work on an assigned task.
-
-A task should ideally have:
-
-* Clear objective
-* Assigned developer
-* Expected result
-* Related GitHub Issue
-* Appropriate branch
-* Pull Request
-
----
-
-# Development Team Responsibilities
-
-## Team Leader / Frontend Lead — Chalachew Akilew
-
-Responsible for:
-
-* Project coordination
-* Frontend architecture
-* React development
-* Reusable components
-* Routing
-* Frontend standards
 * Repository management
-* Pull Request review
-* Integration coordination
+* Git workflow
+* React architecture
+* Routing
+* Reusable component structure
+* Main layout
+* Frontend development standards
 
-## Frontend Developer — Silitu Agalu
+### Frontend Developer — Silitu
 
-Responsible for:
+* Landing page
+* Login UI
+* Registration UI
+* Form components
+* Frontend validation
+* Authentication interface
 
-* UI implementation
-* React pages
-* Forms
-* API integration
-* Context/state management
-* Frontend testing
+### Backend Developer — Husinia
 
-## Backend Developer — Husinia
-
-Responsible for:
-
-* Authentication
-* Company management
-* User management
-* Database architecture
+* MongoDB connection
+* Company model
+* User model
+* Authentication API
 * JWT authentication
-* Tenant middleware
-* Core REST APIs
+* Password hashing
 
-## Backend Developer — Hayatt
+### Backend Developer — Hayatt
 
-Responsible for:
-
-* Inventory APIs
-* Product management
-* Supplier management
-* Purchase management
-* Sales management
-* Stock movements
-* Reports
-* Validation and RBAC
-
-Responsibilities may be adjusted during development according to project needs.
+* Backend project structure
+* Middleware foundation
+* RBAC middleware
+* Validation middleware
+* Logging foundation
+* Base API structure
 
 ---
 
-# Important Rules
+# 31. Week 2 — Core Backend & Authentication
 
-1. Do not push directly to `main`.
-2. Do not push directly to `develop`.
-3. Always create a feature/bugfix branch.
-4. Keep branches focused on one task.
-5. Pull the latest `develop` before starting work.
-6. Test your code before creating a Pull Request.
-7. Never commit secrets.
-8. Never bypass tenant isolation.
-9. Never trust frontend authorization alone.
-10. Request code review before merging.
-11. Keep commits meaningful.
-12. Update documentation when necessary.
+### Chalachew
+
+* Authentication frontend integration
+* Protected routes
+* Auth context
+* Navigation based on authentication
+
+### Silitu
+
+* Authentication pages
+* User interface improvements
+* Form validation
+* Error and loading states
+
+### Husinia
+
+* Registration API
+* Login API
+* JWT middleware
+* Company managem ent
+* User management
+* Tenant identification
+
+### Hayatt
+
+* Role-based authorization
+* Validation
+* Error handling
+* Security middleware
+* API testing
 
 ---
 
-# Questions
+# 32. Week 3 — Inventory & Purchase
 
-If you have questions or encounter a blocker:
+### Frontend Team
 
-1. Check the project documentation.
-2. Check existing GitHub Issues.
-3. Ask the development team.
-4. Contact the Team Leader.
+* Product UI
+* Category UI
+* Supplier UI
+* Inventory UI
+* Purchase UI
 
-Let's build SpareFlow with clean code, secure architecture, and consistent teamwork.
+### Backend Team
+
+* Product APIs
+* Category APIs
+* Supplier APIs
+* Purchase APIs
+* Stock movement logic
+* Automatic stock updates
+
+---
+
+# 33. Week 4 — Sales & Dashboard
+
+### Frontend
+
+* Sales page
+* Invoice interface
+* Dashboard
+* Charts
+* Sales analytics
+
+### Backend
+
+* Sales API
+* Invoice logic
+* Stock reduction
+* Dashboard statistics
+* Sales analytics APIs
+
+---
+
+# 34. Week 5 — Reports & Advanced Features
+
+Implement:
+
+* Sales reports
+* Purchase reports
+* Inventory reports
+* Stock movement reports
+* Low-stock alerts
+* Notifications
+* Audit logging
+
+---
+
+# 35. Week 6 — Integration & Polish
+
+Focus on:
+
+* Frontend/backend integration
+* Responsive UI
+* Error handling
+* Loading states
+* Security improvements
+* Performance improvements
+* User experience
+
+---
+
+# 36. Week 7 — Testing & Quality Assurance
+
+Testing includes:
+
+* Frontend testing
+* Backend testing
+* API testing
+* Integration testing
+* End-to-end testing
+* Security testing
+* Tenant isolation testing
+* Role permission testing
+
+---
+
+# 37. Week 8 — Deployment & Documentation
+
+Final activities:
+
+* Production configuration
+* MongoDB Atlas
+* Backend deployment
+* Frontend deployment
+* Environment configuration
+* Final testing
+* Documentation
+* Release preparation
+
+---
+
+# 38. Final Architecture
+
+The final system can be summarized as:
+
+```text
+                         SpareFlow SaaS
+                              │
+              ┌───────────────┴───────────────┐
+              │                               │
+         React Frontend                  Express API
+              │                               │
+        React Router                     Middleware
+              │                               │
+        Context API                 ┌──────────┼──────────┐
+              │                     │          │          │
+          Axios API              Auth       RBAC      Tenant
+              │                     │          │          │
+              └─────────────────────┴──────────┴──────────┘
+                                             │
+                                        Controllers
+                                             │
+                                          Services
+                                             │
+                                          Mongoose
+                                             │
+                                       MongoDB Atlas
+```
+
+The architecture is designed around three major principles:
+
+```text
+Security
+   +
+Tenant Isolation
+   +
+Maintainability
+```
+
+---
+
+# Project Status
+
+**Initial architecture:** Defined
+
+**Development team:** 4 developers
+
+**Frontend:** React.js + JavaScript/JSX + Vite + Tailwind CSS v4
+
+**Backend:** Node.js + Express.js
+
+**Database:** MongoDB Atlas
+
+**Authentication:** JWT + Bcrypt
+
+**Architecture:** Multi-Tenant SaaS
+
+**Development workflow:** Feature Branch → Develop → Main
+
+**Planned development duration:** 8 weeks
+
+**Version:** 1.0
+
+**Last Updated:** August 2026
+
+**Organization:** Aliyah Technology
