@@ -55,26 +55,9 @@ mongoose.connect(process.env.MONGO_URI, {
 .then(() => logger.info('MongoDB connected successfully'))
 .catch((err) => logger.error('MongoDB connection error', { message: err.message }));
 
-// API Routes
-app.use('/api/v1/auth', authRoutes);
-app.use('/api/v1/companies', companyRoutes);
-app.use('/api/v1/users', userRoutes);
-app.use('/api/v1/categories', categoryRoutes);
-app.use('/api/v1/products', productRoutes);
-app.use('/api/v1/suppliers', supplierRoutes);
-app.use('/api/v1/purchases', purchaseRoutes);
-app.use('/api/v1/sales', salesRoutes);
-app.use('/api/v1/reports', reportRoutes);
-app.use('/api/v1/dashboard', dashboardRoutes);
-
-// Health check endpoint
-app.get('/api/v1/health', (req, res) => {
-  res.status(200).json({
-    success: true,
-    message: 'SpareFlow API is running',
-    timestamp: new Date().toISOString()
-  });
-});
+// Centralized API router (versioned)
+const apiRouter = require('./routes/api');
+app.use('/api/v1', apiRouter);
 
 // 404 handler
 app.use((req, res) => {
