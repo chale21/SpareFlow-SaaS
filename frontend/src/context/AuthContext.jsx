@@ -1,150 +1,265 @@
-import React, { createContext, useState, useEffect, useCallback } from 'react';
-import { storage } from '../utils/storage';
+import React, { createContext, useEffect, useState } from 'react';
 import authService from '../services/authService';
+import { storage } from '../utils/storage';
 
 export const AuthContext = createContext(null);
 
+// const TOKEN_KEY = 'spareflow_token';
+// const USER_KEY = 'spareflow_user';
+
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(() => storage.getUser());
-  const [token, setToken] = useState(() => storage.getToken());
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
+  // ============================================================
+  // STATE
+  // ============================================================
 
-  const isAuthenticated = Boolean(token && user);
+  const [user, setUser] = useState(null);
+  const [token, setToken] = useState(null);
 
-  // Sync state with storage changes or initialization
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  // ============================================================
+  // INITIALIZE AUTHENTICATION
+  // ============================================================
+
   useEffect(() => {
-    const storedToken = storage.getToken();
-    const storedUser = storage.getUser();
-    if (storedToken && storedUser) {
-      setToken(storedToken);
-      setUser(storedUser);
-    }
+    const initializeAuth = async () => {
+      try {
+       const storedToken = storage.getToken();
+const storedUser = storage.getUser();
+
+        if (!storedToken) {
+          setIsLoading(false);
+          return;
+        }
+
+        setToken(storedToken);
+
+        // Use stored user immediately if available
+        if (storedUser) {
+  setUser(storedUser);
+}
+
+        // Verify token and retrieve current profile
+        const response = await authService.getProfile();
+
+        if (response?.success && response?.data?.user) {
+          const currentUser = response.data.user;
+
+          setUser(currentUser);
+         storage.setUser(currentUser);
+        }
+      } catch (error) {
+        console.error('Authentication initialization failed:', error);
+
+        // Token is invalid or expired
+       storage.clearAuth();
+
+        setToken(null);
+        setUser(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    initializeAuth();
   }, []);
 
-  const login = useCallback(async (credentials) => {
-    setIsLoading(true);
-    setError(null);
+  // ============================================================
+  // LOGIN
+  // ============================================================
+
+  const login = async (credentials) => {
     try {
-      let data;
-      try {
-        data = await authService.login(credentials);
-      } catch (err) {
-        // Dev fallback for Week 1 standalone UI testing if backend server is not running
-        if (err.message.includes('Unable to connect')) {
-          console.warn('Backend server unreachable. Using local dev session for UI demonstration.');
-          data = {
-            success: true,
-            token: 'mock_jwt_token_' + Date.now(),
-            user: {
-              id: 'user_1',
-              fullName: credentials.email.split('@')[0] || 'Demo User',
-              email: credentials.email,
-              role: 'Shop Owner',
-              companyName: 'Demo Spare Parts Shop',
-            },
-          };
-        } else {
-          throw err;
-        }
+      setIsLoading(true);
+      setError('');
+
+      const response = await authService.login(credentials);
+
+      if (!response?.success) {
+        return {
+          success: false,
+          error: response?.message || 'Login failed.'
+        };
       }
 
-      const authToken = data.token || data.data?.token;
-      const authUser = data.user || data.data?.user;
+      const receivedToken = response?.data?.token;
+      const receivedUser = response?.data?.user;
 
-      if (authToken && authUser) {
-        storage.setToken(authToken);
-        storage.setUser(authUser);
-        setToken(authToken);
-        setUser(authUser);
-        return { success: true, user: authUser };
-      } else {
-        throw new Error('Invalid response received from authentication server.');
+      if (!receivedToken || !receivedUser) {
+        return {
+          success: false,
+          error: 'Invalid login response from server.'
+        };
       }
-    } catch (err) {
-      const errorMessage = err.message || 'Login failed';
-      setError(errorMessage);
-      return { success: false, error: errorMessage };
+
+      // Store authentication information
+     storage.setToken(receivedToken);
+     storage.setUser(receivedUser);
+
+      setToken(receivedToken);
+      setUser(receivedUser);
+
+      return {
+        success: true,
+        user: receivedUser
+      };
+    } catch (error) {
+      const message =
+        error?.message ||
+        'Login failed. Please try again.';
+
+      setError(message);
+
+      return {
+        success: false,
+        error: message
+      };
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  };
 
-  const register = useCallback(async (companyData) => {
-    setIsLoading(true);
-    setError(null);
+  // ============================================================
+  // REGISTER
+  // ============================================================
+
+  const register = async (companyData) => {
     try {
-      let data;
-      try {
-        data = await authService.registerCompany(companyData);
-      } catch (err) {
-        // Dev fallback for Week 1 standalone UI testing if backend server is not running
-        if (err.message.includes('Unable to connect')) {
-          console.warn('Backend server unreachable. Using local dev session for registration demonstration.');
-          data = {
-            success: true,
-            message: 'Company registered successfully',
-            token: 'mock_jwt_token_' + Date.now(),
-            user: {
-              id: 'user_new',
-              fullName: companyData.ownerName,
-              email: companyData.email,
-              role: 'Shop Owner',
-              companyName: companyData.companyName,
-            },
-          };
-        } else {
-          throw err;
-        }
+      setIsLoading(true);
+      setError('');
+
+      const response =
+        await authService.registerCompany(companyData);
+
+      if (!response?.success) {
+        return {
+          success: false,
+          error:
+            response?.message ||
+            'Company registration failed.'
+        };
       }
 
-      const authToken = data.token || data.data?.token;
-      const authUser = data.user || data.data?.user;
+      const receivedToken = response?.data?.token;
+      const receivedUser = response?.data?.user;
 
-      if (authToken && authUser) {
-        storage.setToken(authToken);
-        storage.setUser(authUser);
-        setToken(authToken);
-        setUser(authUser);
-        return { success: true, user: authUser };
+      if (!receivedToken || !receivedUser) {
+        return {
+          success: false,
+          error:
+            'Registration succeeded but authentication data was not returned.'
+        };
       }
 
-      return { success: true, message: data.message || 'Registration successful' };
-    } catch (err) {
-      const errorMessage = err.message || 'Registration failed';
-      setError(errorMessage);
-      return { success: false, error: errorMessage };
+      // Store authentication information
+      storage.setToken(receivedToken);
+      storage.setUser(receivedUser);
+
+      setToken(receivedToken);
+      setUser(receivedUser);
+
+      return {
+        success: true,
+        user: receivedUser
+      };
+    } catch (error) {
+      const message =
+        error?.message ||
+        'Company registration failed.';
+
+      setError(message);
+
+      return {
+        success: false,
+        error: message
+      };
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  };
 
-  const logout = useCallback(async () => {
-    setIsLoading(true);
+  // ============================================================
+  // LOGOUT
+  // ============================================================
+
+  const logout = async () => {
     try {
+      setIsLoading(true);
+
+      // Tell backend about logout
       await authService.logout();
-    } catch (err) {
-      console.error('Logout error:', err);
+    } catch (error) {
+      console.error('Logout request failed:', error);
     } finally {
+      // Always clear local authentication
       storage.clearAuth();
-      setUser(null);
+
       setToken(null);
-      setError(null);
+      setUser(null);
+      setError('');
+
       setIsLoading(false);
     }
-  }, []);
+  };
+
+  // ============================================================
+  // CLEAR ERROR
+  // ============================================================
+
+  const clearError = () => {
+    setError('');
+  };
+
+  // ============================================================
+  // ROLE HELPERS
+  // ============================================================
+
+  const isSuperAdmin =
+    user?.role === 'SUPER_ADMIN';
+
+  const isShopOwner =
+    user?.role === 'SHOP_OWNER';
+
+  const isStaff =
+    user?.role === 'STAFF';
+
+  // ============================================================
+  // AUTHENTICATION STATUS
+  // ============================================================
+
+  const isAuthenticated =
+    Boolean(user && token);
+
+  // ============================================================
+  // CONTEXT VALUE
+  // ============================================================
 
   const value = {
     user,
     token,
+
     isAuthenticated,
     isLoading,
+
     error,
+
     login,
     register,
     logout,
-    clearError: () => setError(null),
+
+    clearError,
+
+    isSuperAdmin,
+    isShopOwner,
+    isStaff
   };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
 };
+
+export default AuthContext;
