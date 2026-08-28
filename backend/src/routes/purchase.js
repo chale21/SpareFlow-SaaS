@@ -1,22 +1,19 @@
 const express = require('express');
 const router = express.Router();
 const { authenticateUser } = require('../middleware/auth');
+const { filterByCompany } = require('../middleware/tenant');
+const { isCompanyUser } = require('../middleware/role');
+const { validatePurchase, validateMongoId } = require('../middleware/validate');
+const purchaseController = require('../controllers/purchaseController');
 
 // Purchase management routes
-router.get('/', authenticateUser, (req, res) => {
-  res.status(200).json({ message: 'Get purchases endpoint - To be implemented' });
-});
+router.use(authenticateUser, filterByCompany);
+router.get('/history', isCompanyUser, purchaseController.list);
+router.get('/', isCompanyUser, purchaseController.list);
 
-router.post('/', authenticateUser, (req, res) => {
-  res.status(200).json({ message: 'Create purchase endpoint - To be implemented' });
-});
+router.post('/', isCompanyUser, validatePurchase, purchaseController.create);
 
-router.put('/:id/receive', authenticateUser, (req, res) => {
-  res.status(200).json({ message: 'Receive inventory endpoint - To be implemented' });
-});
+router.put('/:id/receive', isCompanyUser, validateMongoId(), purchaseController.receive);
 
-router.get('/history', authenticateUser, (req, res) => {
-  res.status(200).json({ message: 'Purchase history endpoint - To be implemented' });
-});
 
 module.exports = router;

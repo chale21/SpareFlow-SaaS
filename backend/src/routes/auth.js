@@ -1,12 +1,19 @@
+/**
+ * Authentication Routes
+ * 
+ * POST   /api/v1/auth/register        - Register new company
+ * POST   /api/v1/auth/login           - Login user
+ * POST   /api/v1/auth/logout          - Logout user
+ * POST   /api/v1/auth/forgot-password - Request password reset
+ * POST   /api/v1/auth/reset-password  - Reset password
+ * GET    /api/v1/auth/profile         - Get user profile
+ */
+
 const express = require('express');
 
 const router = express.Router();
-
-const {
-    register,
-    login
-} = require('../controllers/authController');
-
+const { authenticateUser } = require('../middleware/auth');
+const { authRateLimiter } = require('../middleware/security');
 const {
     authenticateUser
 } = require('../middleware/auth');
