@@ -1,14 +1,15 @@
 import { useContext } from 'react';
-import { AuthContext } from '../context/AuthContext';
+import AuthContext from '../context/AuthContext';
 
-/**
- * Reusable hook to consume application AuthContext.
- */
-export const useAuth = () => {
+const useAuth = () => {
   const context = useContext(AuthContext);
+
   if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error(
+      'useAuth must be used inside an AuthProvider'
+    );
   }
+
   return context;
 };
 

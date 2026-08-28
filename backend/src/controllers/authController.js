@@ -4,71 +4,111 @@ const User = require('../models/User');
 const Company = require('../models/Company');
 const { generateToken } = require('../utils/jwt');
 
-// Register user
+// ============================================================
+// REGISTER COMPANY + SHOP OWNER
+// ============================================================
+
 const register = async (req, res) => {
     try {
         const {
-            name,
+            companyName,
+            ownerName,
             email,
-            password,
-            companyId
+            password
         } = req.body;
 
+        // --------------------------------------------------------
         // Validate required fields
-        if (!name || !email || !password || !companyId) {
+        // --------------------------------------------------------
+
+        if (!companyName || !ownerName || !email || !password) {
             return res.status(400).json({
                 success: false,
-                message: 'Name, email, password and companyId are required'
+                message:
+                    'Company name, owner name, email and password are required'
             });
         }
 
-        // Check if company exists
-        const company = await Company.findById(companyId);
+        // --------------------------------------------------------
+        // Normalize values
+        // --------------------------------------------------------
 
-        if (!company) {
-            return res.status(404).json({
-                success: false,
-                message: 'Company not found'
-            });
-        }
+        const normalizedEmail = email.trim().toLowerCase();
 
-        // Check existing user by email globally
+        const cleanCompanyName = companyName.trim();
+        const cleanOwnerName = ownerName.trim();
+
+        // --------------------------------------------------------
+        // Check existing user
+        // --------------------------------------------------------
+
         const existingUser = await User.findOne({
-            email: email.toLowerCase()
+            email: normalizedEmail
         });
 
         if (existingUser) {
             return res.status(409).json({
                 success: false,
-                message: 'User already exists'
+                message: 'An account with this email already exists'
             });
         }
 
+        // --------------------------------------------------------
         // Hash password
+        // --------------------------------------------------------
+
         const hashedPassword = await bcrypt.hash(password, 12);
 
-        // Create user (do not trust role from client; use model default)
+        // --------------------------------------------------------
+        // Create company
+        // --------------------------------------------------------
+
+       const company = await Company.create({
+    name: cleanCompanyName,
+    email: normalizedEmail
+});
+
+        // --------------------------------------------------------
+        // Create shop owner
+        // --------------------------------------------------------
+
         const user = await User.create({
-            companyId,
-            name,
-            email: email.toLowerCase(),
-            password: hashedPassword
+            companyId: company._id,
+            name: cleanOwnerName,
+            email: normalizedEmail,
+            password: hashedPassword,
+            role: 'SHOP_OWNER',
+            status: 'ACTIVE'
         });
 
+        // --------------------------------------------------------
         // Generate JWT
+        // --------------------------------------------------------
+
         const token = generateToken(user);
+
+        // --------------------------------------------------------
+        // Response
+        // --------------------------------------------------------
 
         return res.status(201).json({
             success: true,
-            message: 'User registered successfully',
+            message: 'Company registered successfully',
             data: {
                 user: {
                     id: user._id,
                     name: user.name,
                     email: user.email,
                     companyId: user.companyId,
-                    role: user.role
+                    role: user.role,
+                    status: user.status
                 },
+
+                company: {
+                    id: company._id,
+                    name: company.name
+                },
+
                 token
             }
         });
@@ -78,13 +118,16 @@ const register = async (req, res) => {
 
         return res.status(500).json({
             success: false,
-            message: 'Registration failed'
+            message: 'Company registration failed'
         });
     }
 };
 
 
-// Login user
+// ============================================================
+// LOGIN
+// ============================================================
+
 const login = async (req, res) => {
     try {
         const {
@@ -92,7 +135,10 @@ const login = async (req, res) => {
             password
         } = req.body;
 
+        // --------------------------------------------------------
         // Validate input
+        // --------------------------------------------------------
+
         if (!email || !password) {
             return res.status(400).json({
                 success: false,
@@ -100,9 +146,14 @@ const login = async (req, res) => {
             });
         }
 
+        const normalizedEmail = email.trim().toLowerCase();
+
+        // --------------------------------------------------------
         // Find user
+        // --------------------------------------------------------
+
         const user = await User.findOne({
-            email: email.toLowerCase()
+            email: normalizedEmail
         });
 
         if (!user) {
@@ -112,7 +163,10 @@ const login = async (req, res) => {
             });
         }
 
+        // --------------------------------------------------------
         // Check account status
+        // --------------------------------------------------------
+
         if (user.status !== 'ACTIVE') {
             return res.status(403).json({
                 success: false,
@@ -120,7 +174,10 @@ const login = async (req, res) => {
             });
         }
 
+        // --------------------------------------------------------
         // Compare password
+        // --------------------------------------------------------
+
         const passwordMatch = await bcrypt.compare(
             password,
             user.password
@@ -133,12 +190,23 @@ const login = async (req, res) => {
             });
         }
 
+        // --------------------------------------------------------
         // Update last login
+        // --------------------------------------------------------
+
         user.lastLogin = new Date();
+
         await user.save();
 
-        // Generate JWT
+        // --------------------------------------------------------
+        // Generate token
+        // --------------------------------------------------------
+
         const token = generateToken(user);
+
+        // --------------------------------------------------------
+        // Response
+        // --------------------------------------------------------
 
         return res.status(200).json({
             success: true,
@@ -149,7 +217,8 @@ const login = async (req, res) => {
                     name: user.name,
                     email: user.email,
                     companyId: user.companyId,
-                    role: user.role
+                    role: user.role,
+                    status: user.status
                 },
                 token
             }
