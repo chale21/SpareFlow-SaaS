@@ -1,5 +1,3 @@
-const bcrypt = require('bcryptjs');
-
 const User = require('../models/User');
 const Company = require('../models/Company');
 const { generateToken } = require('../utils/jwt');
@@ -34,9 +32,19 @@ const register = async (req, res) => {
         // --------------------------------------------------------
 
         const normalizedEmail = email.trim().toLowerCase();
-
         const cleanCompanyName = companyName.trim();
         const cleanOwnerName = ownerName.trim();
+
+        // --------------------------------------------------------
+        // Basic password validation
+        // --------------------------------------------------------
+
+        if (password.length < 6) {
+            return res.status(400).json({
+                success: false,
+                message: 'Password must be at least 6 characters long'
+            });
+        }
 
         // --------------------------------------------------------
         // Check existing user
@@ -54,32 +62,59 @@ const register = async (req, res) => {
         }
 
         // --------------------------------------------------------
-        // Hash password
+        // Check existing company
         // --------------------------------------------------------
 
-        const hashedPassword = await bcrypt.hash(password, 12);
+        const existingCompany = await Company.findOne({
+            name: cleanCompanyName
+        });
+
+        if (existingCompany) {
+            return res.status(409).json({
+                success: false,
+                message: 'A company with this name already exists'
+            });
+        }
 
         // --------------------------------------------------------
         // Create company
+        //
+        // Company schema uses contactEmail, NOT email.
         // --------------------------------------------------------
 
-       const company = await Company.create({
-    name: cleanCompanyName,
-    email: normalizedEmail
-});
+        const company = await Company.create({
+            name: cleanCompanyName,
+            contactName: cleanOwnerName,
+            contactEmail: normalizedEmail,
+            status: 'ACTIVE'
+        });
 
         // --------------------------------------------------------
         // Create shop owner
+        //
+        // IMPORTANT:
+        // Do NOT bcrypt.hash() here.
+        //
+        // User model's pre-save middleware handles hashing.
         // --------------------------------------------------------
 
         const user = await User.create({
             companyId: company._id,
             name: cleanOwnerName,
+            fullName: cleanOwnerName,
             email: normalizedEmail,
-            password: hashedPassword,
+            password: password,
             role: 'SHOP_OWNER',
-            status: 'ACTIVE'
+            status: 'ACTIVE',
+            isActive: true
         });
+
+        // --------------------------------------------------------
+        // Set createdBy after user exists
+        // --------------------------------------------------------
+
+        company.createdBy = user._id;
+        await company.save();
 
         // --------------------------------------------------------
         // Generate JWT
@@ -94,10 +129,12 @@ const register = async (req, res) => {
         return res.status(201).json({
             success: true,
             message: 'Company registered successfully',
+
             data: {
                 user: {
                     id: user._id,
                     name: user.name,
+                    fullName: user.fullName,
                     email: user.email,
                     companyId: user.companyId,
                     role: user.role,
@@ -106,7 +143,10 @@ const register = async (req, res) => {
 
                 company: {
                     id: company._id,
-                    name: company.name
+                    name: company.name,
+                    contactName: company.contactName,
+                    contactEmail: company.contactEmail,
+                    status: company.status
                 },
 
                 token
@@ -115,6 +155,39 @@ const register = async (req, res) => {
 
     } catch (error) {
         console.error('Registration error:', error);
+
+        // --------------------------------------------------------
+        // Duplicate key error
+        // --------------------------------------------------------
+
+        if (error.code === 11000) {
+            console.error('Duplicate key details:', error.keyValue);
+
+            return res.status(409).json({
+                success: false,
+                message: 'A record with the same unique value already exists',
+                error: error.keyValue
+            });
+        }
+
+        // --------------------------------------------------------
+        // Mongoose validation error
+        // --------------------------------------------------------
+
+        if (error.name === 'ValidationError') {
+            const messages = Object.values(error.errors).map(
+                (err) => err.message
+            );
+
+            return res.status(400).json({
+                success: false,
+                message: messages.join(', ')
+            });
+        }
+
+        // --------------------------------------------------------
+        // General error
+        // --------------------------------------------------------
 
         return res.status(500).json({
             success: false,
@@ -150,16 +223,39 @@ const login = async (req, res) => {
 
         // --------------------------------------------------------
         // Find user
+        //
+        // IMPORTANT:
+        // password has select:false in User schema.
+        // We MUST explicitly select it.
         // --------------------------------------------------------
 
         const user = await User.findOne({
             email: normalizedEmail
-        });
+        }).select('+password');
+
+        // --------------------------------------------------------
+        // User not found
+        // --------------------------------------------------------
 
         if (!user) {
             return res.status(401).json({
                 success: false,
                 message: 'Invalid email or password'
+            });
+        }
+
+        // --------------------------------------------------------
+        // Check password exists
+        // --------------------------------------------------------
+
+        if (!user.password) {
+            console.error(
+                `User ${user._id} does not have a password`
+            );
+
+            return res.status(500).json({
+                success: false,
+                message: 'User account has an invalid password configuration'
             });
         }
 
@@ -175,13 +271,23 @@ const login = async (req, res) => {
         }
 
         // --------------------------------------------------------
-        // Compare password
+        // Check isActive
         // --------------------------------------------------------
 
-        const passwordMatch = await bcrypt.compare(
-            password,
-            user.password
-        );
+        if (user.isActive === false) {
+            return res.status(403).json({
+                success: false,
+                message: 'User account is inactive'
+            });
+        }
+
+        // --------------------------------------------------------
+        // Compare password
+        //
+        // Use the User model's comparePassword method.
+        // --------------------------------------------------------
+
+        const passwordMatch = await user.comparePassword(password);
 
         if (!passwordMatch) {
             return res.status(401).json({
@@ -199,7 +305,7 @@ const login = async (req, res) => {
         await user.save();
 
         // --------------------------------------------------------
-        // Generate token
+        // Generate JWT
         // --------------------------------------------------------
 
         const token = generateToken(user);
@@ -211,21 +317,43 @@ const login = async (req, res) => {
         return res.status(200).json({
             success: true,
             message: 'Login successful',
+
             data: {
                 user: {
                     id: user._id,
                     name: user.name,
+                    fullName: user.fullName,
                     email: user.email,
                     companyId: user.companyId,
                     role: user.role,
                     status: user.status
                 },
+
                 token
             }
         });
 
     } catch (error) {
         console.error('Login error:', error);
+
+        // --------------------------------------------------------
+        // Mongoose validation error
+        // --------------------------------------------------------
+
+        if (error.name === 'ValidationError') {
+            const messages = Object.values(error.errors).map(
+                (err) => err.message
+            );
+
+            return res.status(400).json({
+                success: false,
+                message: messages.join(', ')
+            });
+        }
+
+        // --------------------------------------------------------
+        // General error
+        // --------------------------------------------------------
 
         return res.status(500).json({
             success: false,

@@ -14,10 +14,12 @@ const express = require('express');
 const router = express.Router();
 const { authenticateUser } = require('../middleware/auth');
 const { authRateLimiter } = require('../middleware/security');
-const {
-    authenticateUser
-} = require('../middleware/auth');
 
+
+const {
+  register,
+  login,
+} = require('../controllers/authController');
 
 // ============================================================
 // REGISTER
