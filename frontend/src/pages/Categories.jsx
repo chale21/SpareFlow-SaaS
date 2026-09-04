@@ -104,14 +104,87 @@ const Categories = () => {
   });
 
   const [errors, setErrors] = useState({});
-  const [isSaving, setIsSaving] = useState(false);
-
-  const [notification, setNotification] = useState(null);
 
   const menuRef = useRef(null);
 
   // ============================================================
-  // CLOSE ACTION MENU WHEN CLICKING OUTSIDE
+  // NORMALIZE CATEGORY
+  // ============================================================
+
+  const normalizeCategory = useCallback((category) => {
+    return {
+      ...category,
+
+      id:
+        category?._id ??
+        category?.id ??
+        '',
+
+      name:
+        category?.categoryName ??
+        category?.name ??
+        '',
+
+      description:
+        category?.description ??
+        '',
+
+      status:
+        category?.isActive === false
+          ? 'inactive'
+          : category?.status === 'inactive'
+          ? 'inactive'
+          : 'active',
+
+      productCount:
+        Number(
+          category?.productCount ??
+          category?.productsCount ??
+          0
+        ),
+    };
+  }, []);
+
+  // ============================================================
+  // LOAD CATEGORIES
+  // ============================================================
+
+  const loadCategories = useCallback(async () => {
+    setLoading(true);
+    setError('');
+
+    try {
+      const data = await categoryService.list();
+
+      const normalized = Array.isArray(data)
+        ? data.map(normalizeCategory)
+        : [];
+
+      setCategories(normalized);
+    } catch (err) {
+      console.error(
+        'Failed to load categories:',
+        err
+      );
+
+      setError(
+        err?.response?.data?.message ||
+          err?.message ||
+          'Failed to load categories.'
+      );
+
+      setCategories([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [normalizeCategory]);
+
+  useEffect(() => {
+    loadCategories();
+  }, [loadCategories]);
+
+  // ============================================================
+  // CLOSE MENU WHEN CLICKING OUTSIDE
   // ============================================================
 
   useEffect(() => {
@@ -124,7 +197,10 @@ const Categories = () => {
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener(
+      'mousedown',
+      handleClickOutside
+    );
 
     return () => {
       document.removeEventListener(
@@ -133,46 +209,6 @@ const Categories = () => {
       );
     };
   }, []);
-
-  // ============================================================
-  // SEARCH + FILTER
-  // ============================================================
-
-  const filteredCategories = useMemo(() => {
-    const query = searchTerm.trim().toLowerCase();
-
-    return categories.filter((category) => {
-      const matchesSearch =
-        !query ||
-        category.name.toLowerCase().includes(query) ||
-        category.description.toLowerCase().includes(query);
-
-      const matchesStatus =
-        statusFilter === 'all' ||
-        category.status === statusFilter;
-
-      return matchesSearch && matchesStatus;
-    });
-  }, [categories, searchTerm, statusFilter]);
-
-  // ============================================================
-  // STATISTICS
-  // ============================================================
-
-  const totalCategories = categories.length;
-
-  const activeCategories = categories.filter(
-    (category) => category.status === 'active'
-  ).length;
-
-  const inactiveCategories = categories.filter(
-    (category) => category.status === 'inactive'
-  ).length;
-
-  const totalProducts = categories.reduce(
-    (total, category) => total + category.productCount,
-    0
-  );
 
   // ============================================================
   // NOTIFICATION
@@ -190,37 +226,108 @@ const Categories = () => {
   };
 
   // ============================================================
-  // CREATE
+  // FILTER
   // ============================================================
 
-  const handleOpenCreate = () => {
-    setEditingCategory(null);
+  const filteredCategories = useMemo(() => {
+    const query = searchTerm
+      .trim()
+      .toLowerCase();
 
+    return categories.filter((category) => {
+      const name =
+        category.name?.toLowerCase() || '';
+
+      const description =
+        category.description?.toLowerCase() || '';
+
+      const matchesSearch =
+        !query ||
+        name.includes(query) ||
+        description.includes(query);
+
+      const matchesStatus =
+        statusFilter === 'all' ||
+        category.status === statusFilter;
+
+      return (
+        matchesSearch &&
+        matchesStatus
+      );
+    });
+  }, [
+    categories,
+    searchTerm,
+    statusFilter,
+  ]);
+
+  // ============================================================
+  // STATISTICS
+  // ============================================================
+
+  const totalCategories =
+    categories.length;
+
+  const activeCategories =
+    categories.filter(
+      (category) =>
+        category.status === 'active'
+    ).length;
+
+  const inactiveCategories =
+    categories.filter(
+      (category) =>
+        category.status === 'inactive'
+    ).length;
+
+  const totalProducts =
+    categories.reduce(
+      (total, category) =>
+        total +
+        Number(category.productCount || 0),
+      0
+    );
+
+  // ============================================================
+  // FORM RESET
+  // ============================================================
+
+  const resetForm = () => {
     setFormData({
       name: '',
       description: '',
     });
 
     setErrors({});
-    setOpenMenuId(null);
-    setIsModalOpen(true);
   };
 
   // ============================================================
-  // EDIT
+  // OPEN CREATE
+  // ============================================================
+
+  const handleOpenCreate = () => {
+    setEditingCategory(null);
+    resetForm();
+    setIsModalOpen(true);
+    setOpenMenuId(null);
+  };
+
+  // ============================================================
+  // OPEN EDIT
   // ============================================================
 
   const handleOpenEdit = (category) => {
     setEditingCategory(category);
 
     setFormData({
-      name: category.name,
-      description: category.description,
+      name: category.name || '',
+      description:
+        category.description || '',
     });
 
     setErrors({});
-    setOpenMenuId(null);
     setIsModalOpen(true);
+    setOpenMenuId(null);
   };
 
   // ============================================================
@@ -229,46 +336,8 @@ const Categories = () => {
 
   const handleView = (category) => {
     setViewingCategory(category);
-    setOpenMenuId(null);
     setIsViewModalOpen(true);
-  };
-
-  // ============================================================
-  // CLOSE CREATE / EDIT MODAL
-  // ============================================================
-
-  const handleCloseModal = () => {
-    if (isSaving) return;
-
-    setIsModalOpen(false);
-    setEditingCategory(null);
-
-    setFormData({
-      name: '',
-      description: '',
-    });
-
-    setErrors({});
-  };
-
-  // ============================================================
-  // FORM INPUT
-  // ============================================================
-
-  const handleChange = (event) => {
-    const { name, value } = event.target;
-
-    setFormData((previous) => ({
-      ...previous,
-      [name]: value,
-    }));
-
-    if (errors[name]) {
-      setErrors((previous) => ({
-        ...previous,
-        [name]: '',
-      }));
-    }
+    setOpenMenuId(null);
   };
 
   // ============================================================
@@ -278,38 +347,56 @@ const Categories = () => {
   const validateForm = () => {
     const newErrors = {};
 
-    const categoryName = formData.name.trim();
+    const name =
+      formData.name.trim();
 
-    if (!categoryName) {
-      newErrors.name = 'Category name is required.';
-    } else if (categoryName.length < 2) {
+    const description =
+      formData.description.trim();
+
+    if (!name) {
+      newErrors.name =
+        'Category name is required.';
+    } else if (name.length < 2) {
       newErrors.name =
         'Category name must contain at least 2 characters.';
-    } else if (categoryName.length > 100) {
+    } else if (name.length > 100) {
       newErrors.name =
         'Category name cannot exceed 100 characters.';
     }
 
-    const duplicate = categories.some(
-      (category) =>
-        category.name.toLowerCase() ===
-          categoryName.toLowerCase() &&
-        category.id !== editingCategory?.id
-    );
+    if (description.length > 500) {
+      newErrors.description =
+        'Description cannot exceed 500 characters.';
+    }
+
+    const duplicate =
+      categories.some((category) => {
+        const sameName =
+          category.name
+            ?.trim()
+            .toLowerCase() ===
+          name.toLowerCase();
+
+        const differentId =
+          category.id !==
+          editingCategory?.id;
+
+        return (
+          sameName &&
+          differentId
+        );
+      });
 
     if (duplicate) {
       newErrors.name =
         'A category with this name already exists.';
     }
 
-    if (formData.description.length > 500) {
-      newErrors.description =
-        'Description cannot exceed 500 characters.';
-    }
-
     setErrors(newErrors);
 
-    return Object.keys(newErrors).length === 0;
+    return (
+      Object.keys(newErrors).length === 0
+    );
   };
 
   // ============================================================
@@ -325,62 +412,56 @@ const Categories = () => {
 
     setIsSaving(true);
 
-    // Temporary API simulation
-    await new Promise((resolve) =>
-      setTimeout(resolve, 600)
-    );
+    try {
+      const payload = {
+        categoryName:
+          formData.name.trim(),
 
-    const cleanName = formData.name.trim();
-    const cleanDescription = formData.description.trim();
-
-    if (editingCategory) {
-      setCategories((previous) =>
-        previous.map((category) =>
-          category.id === editingCategory.id
-            ? {
-                ...category,
-                name: cleanName,
-                description: cleanDescription,
-                updatedAt: new Date()
-                  .toISOString()
-                  .split('T')[0],
-              }
-            : category
-        )
-      );
-
-      showNotification(
-        'success',
-        'Category updated successfully.'
-      );
-    } else {
-      const newCategory = {
-        id: Date.now().toString(),
-        name: cleanName,
-        description: cleanDescription,
-        productCount: 0,
-        status: 'active',
-        createdAt: new Date()
-          .toISOString()
-          .split('T')[0],
-        updatedAt: new Date()
-          .toISOString()
-          .split('T')[0],
+        description:
+          formData.description.trim(),
       };
 
-      setCategories((previous) => [
-        ...previous,
-        newCategory,
-      ]);
+      if (editingCategory) {
+        await categoryService.update(
+          editingCategory.id,
+          payload
+        );
+
+        showNotification(
+          'success',
+          'Category updated successfully.'
+        );
+      } else {
+        await categoryService.create(
+          payload
+        );
+
+        showNotification(
+          'success',
+          'Category created successfully.'
+        );
+      }
+
+      setIsModalOpen(false);
+      setEditingCategory(null);
+      resetForm();
+
+      await loadCategories();
+    } catch (err) {
+      console.error(
+        'Failed to save category:',
+        err
+      );
 
       showNotification(
-        'success',
-        'Category created successfully.'
+        'error',
+        err?.response?.data?.message ||
+          err?.message ||
+          'Failed to save category.'
       );
+    } finally {
+      setIsSaving(false);
     }
-
-    setIsSaving(false);
-    handleCloseModal();
   };
 
   // ============================================================
@@ -393,41 +474,44 @@ const Categories = () => {
   };
 
   const confirmDelete = async () => {
-    if (!categoryToDelete) return;
-
-    /*
-      IMPORTANT:
-      The real backend should prevent deletion if products
-      still belong to this category.
-    */
-
-    if (categoryToDelete.productCount > 0) {
-      showNotification(
-        'error',
-        'This category cannot be deleted while products are assigned to it.'
-      );
-
-      setCategoryToDelete(null);
+    if (!categoryToDelete) {
       return;
     }
 
-    setCategories((previous) =>
-      previous.filter(
-        (category) =>
-          category.id !== categoryToDelete.id
-      )
-    );
+    setIsSaving(true);
 
-    showNotification(
-      'success',
-      `${categoryToDelete.name} deleted successfully.`
-    );
+    try {
+      await categoryService.remove(
+        categoryToDelete.id
+      );
 
-    setCategoryToDelete(null);
+      showNotification(
+        'success',
+        `${categoryToDelete.name} deleted successfully.`
+      );
+
+      setCategoryToDelete(null);
+
+      await loadCategories();
+    } catch (err) {
+      console.error(
+        'Failed to delete category:',
+        err
+      );
+
+      showNotification(
+        'error',
+        err?.response?.data?.message ||
+          err?.message ||
+          'Failed to delete category.'
+      );
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // ============================================================
-  // ACTIVATE / DEACTIVATE
+  // TOGGLE ACTIVE STATUS
   // ============================================================
 
   const handleToggleStatus = (category) => {
@@ -436,45 +520,78 @@ const Categories = () => {
   };
 
   const confirmToggleStatus = async () => {
-    if (!categoryToToggle) return;
+    if (!categoryToToggle) {
+      return;
+    }
 
-    const newStatus =
-      categoryToToggle.status === 'active'
-        ? 'inactive'
-        : 'active';
+    const isCurrentlyActive =
+      categoryToToggle.status === 'active';
 
-    setCategories((previous) =>
-      previous.map((category) =>
-        category.id === categoryToToggle.id
-          ? {
-              ...category,
-              status: newStatus,
-              updatedAt: new Date()
-                .toISOString()
-                .split('T')[0],
-            }
-          : category
-      )
-    );
+    setIsSaving(true);
 
-    showNotification(
-      'success',
-      `${categoryToToggle.name} has been ${
-        newStatus === 'active'
-          ? 'activated'
-          : 'deactivated'
-      }.`
-    );
+    try {
+      await categoryService.update(
+        categoryToToggle.id,
+        {
+          categoryName:
+            categoryToToggle.name,
 
-    setCategoryToToggle(null);
+          description:
+            categoryToToggle.description || '',
+
+          isActive:
+            !isCurrentlyActive,
+        }
+      );
+
+      showNotification(
+        'success',
+        `${categoryToToggle.name} has been ${
+          isCurrentlyActive
+            ? 'deactivated'
+            : 'activated'
+        }.`
+      );
+
+      setCategoryToToggle(null);
+
+      await loadCategories();
+    } catch (err) {
+      console.error(
+        'Failed to update category status:',
+        err
+      );
+
+      showNotification(
+        'error',
+        err?.response?.data?.message ||
+          err?.message ||
+          'Failed to update category status.'
+      );
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // ============================================================
-  // DATE FORMAT
+  // FORMAT DATE
   // ============================================================
 
   const formatDate = (date) => {
-    return new Date(date).toLocaleDateString(
+    if (!date) {
+      return '-';
+    }
+
+    const parsed =
+      new Date(date);
+
+    if (
+      Number.isNaN(parsed.getTime())
+    ) {
+      return '-';
+    }
+
+    return parsed.toLocaleDateString(
       'en-US',
       {
         year: 'numeric',
@@ -485,20 +602,15 @@ const Categories = () => {
   };
 
   // ============================================================
-  // RESET FILTERS
+  // RENDER
   // ============================================================
-
-  const resetFilters = () => {
-    setSearchTerm('');
-    setStatusFilter('all');
-  };
 
   return (
     <div className="min-h-screen bg-slate-50">
 
-      {/* ========================================================
+      {/* ======================================================
           NOTIFICATION
-      ======================================================== */}
+      ====================================================== */}
 
       {notification && (
         <div className="fixed right-4 top-4 z-[100] max-w-sm">
@@ -532,7 +644,9 @@ const Categories = () => {
             </span>
 
             <button
-              onClick={() => setNotification(null)}
+              onClick={() =>
+                setNotification(null)
+              }
               className="ml-auto text-slate-400 hover:text-slate-700"
             >
               <FiX size={16} />
@@ -541,20 +655,16 @@ const Categories = () => {
         </div>
       )}
 
-      {/* ========================================================
+      {/* ======================================================
           PAGE
-      ======================================================== */}
+      ====================================================== */}
 
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
 
-        {/* ======================================================
-            HEADER
-        ====================================================== */}
+        {/* HEADER */}
 
         <div className="mb-7 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-
           <div>
-           
             <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
               Category Management
             </h1>
@@ -564,565 +674,394 @@ const Categories = () => {
             </p>
           </div>
 
-          <button
-            onClick={handleOpenCreate}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-          >
-            <FiPlus size={18} />
-            Add Category
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={loadCategories}
+              disabled={loading}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+            >
+              <FiRefreshCw
+                size={17}
+                className={
+                  loading
+                    ? 'animate-spin'
+                    : ''
+                }
+              />
+              Refresh
+            </button>
+
+            <button
+              onClick={handleOpenCreate}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-blue-700"
+            >
+              <FiPlus size={18} />
+              Add Category
+            </button>
+          </div>
         </div>
 
-        {/* ======================================================
-            STATISTICS
-        ====================================================== */}
+        {/* ERROR */}
+
+        {error && (
+          <div className="mb-5 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">
+            <FiAlertCircle className="mt-0.5" />
+
+            <div className="flex-1">
+              <p className="font-semibold">
+                Could not load categories
+              </p>
+
+              <p className="mt-1 text-sm">
+                {error}
+              </p>
+            </div>
+
+            <button
+              onClick={loadCategories}
+              className="text-sm font-semibold underline"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
+        {/* STATISTICS */}
 
         <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
 
-          {/* Total */}
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-500">
-                  Total Categories
-                </p>
+            <p className="text-sm font-medium text-slate-500">
+              Total Categories
+            </p>
 
-                <p className="mt-2 text-3xl font-bold text-slate-900">
-                  {totalCategories}
-                </p>
-
-                <p className="mt-1 text-xs text-slate-400">
-                  All categories
-                </p>
-              </div>
-
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-                <FiFolder size={21} />
-              </div>
-            </div>
+            <p className="mt-2 text-3xl font-bold text-slate-900">
+              {totalCategories}
+            </p>
           </div>
 
-          {/* Active */}
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-500">
-                  Active
-                </p>
+            <p className="text-sm font-medium text-slate-500">
+              Active
+            </p>
 
-                <p className="mt-2 text-3xl font-bold text-emerald-600">
-                  {activeCategories}
-                </p>
-
-                <p className="mt-1 text-xs text-slate-400">
-                  Available categories
-                </p>
-              </div>
-
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
-                <FiCheckCircle size={21} />
-              </div>
-            </div>
+            <p className="mt-2 text-3xl font-bold text-emerald-600">
+              {activeCategories}
+            </p>
           </div>
 
-          {/* Inactive */}
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-500">
-                  Inactive
-                </p>
+            <p className="text-sm font-medium text-slate-500">
+              Inactive
+            </p>
 
-                <p className="mt-2 text-3xl font-bold text-amber-600">
-                  {inactiveCategories}
-                </p>
-
-                <p className="mt-1 text-xs text-slate-400">
-                  Disabled categories
-                </p>
-              </div>
-
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
-                <FiPower size={21} />
-              </div>
-            </div>
+            <p className="mt-2 text-3xl font-bold text-amber-600">
+              {inactiveCategories}
+            </p>
           </div>
 
-          {/* Products */}
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-slate-500">
-                  Products
-                </p>
+            <p className="text-sm font-medium text-slate-500">
+              Products
+            </p>
 
-                <p className="mt-2 text-3xl font-bold text-violet-600">
-                  {totalProducts}
-                </p>
-
-                <p className="mt-1 text-xs text-slate-400">
-                  Categorized products
-                </p>
-              </div>
-
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-violet-50 text-violet-600">
-                <FiPackage size={21} />
-              </div>
-            </div>
+            <p className="mt-2 text-3xl font-bold text-violet-600">
+              {totalProducts}
+            </p>
           </div>
+
         </div>
 
-        {/* ======================================================
-            MAIN CARD
-        ====================================================== */}
+        {/* MAIN CARD */}
 
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
 
-          {/* ====================================================
-              TOOLBAR
-          ==================================================== */}
+          {/* TOOLBAR */}
 
-          <div className="flex flex-col gap-4 border-b border-slate-200 p-4 sm:p-5 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-col gap-4 border-b border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between">
 
-           
+            <div className="relative w-full sm:w-80">
+              <FiSearch
+                size={17}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+              />
 
-            <div className="flex flex-col gap-3 sm:flex-row">
-
-              {/* Search */}
-              <div className="relative w-full sm:w-72">
-                <FiSearch
-                  size={17}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-                />
-
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(event) =>
-                    setSearchTerm(event.target.value)
-                  }
-                  placeholder="Search categories..."
-                  className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-10 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-                />
-
-                {searchTerm && (
-                  <button
-                    onClick={() => setSearchTerm('')}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
-                  >
-                    <FiX size={16} />
-                  </button>
-                )}
-              </div>
-
-              {/* Status Filter */}
-              <select
-                value={statusFilter}
+              <input
+                type="text"
+                value={searchTerm}
                 onChange={(event) =>
-                  setStatusFilter(event.target.value)
+                  setSearchTerm(
+                    event.target.value
+                  )
                 }
-                className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-              >
-                <option value="all">
-                  All Status
-                </option>
-
-                <option value="active">
-                  Active
-                </option>
-
-                <option value="inactive">
-                  Inactive
-                </option>
-              </select>
+                placeholder="Search categories..."
+                className="w-full rounded-xl border border-slate-300 py-2.5 pl-10 pr-4 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+              />
             </div>
+
+            <select
+              value={statusFilter}
+              onChange={(event) =>
+                setStatusFilter(
+                  event.target.value
+                )
+              }
+              className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium outline-none focus:border-blue-500"
+            >
+              <option value="all">
+                All Status
+              </option>
+
+              <option value="active">
+                Active
+              </option>
+
+              <option value="inactive">
+                Inactive
+              </option>
+            </select>
+
           </div>
 
-          {/* ====================================================
-              DESKTOP TABLE
-          ==================================================== */}
+          {/* LOADING */}
 
-          <div className="hidden overflow-x-auto md:block">
+          {loading ? (
+            <div className="flex min-h-[300px] items-center justify-center">
+              <div className="text-center">
+                <FiRefreshCw
+                  size={28}
+                  className="mx-auto animate-spin text-blue-600"
+                />
 
-            <table className="w-full min-w-[850px]">
-
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50">
-
-                  <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Category
-                  </th>
-
-                  <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Description
-                  </th>
-
-                  <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Products
-                  </th>
-
-                  <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Status
-                  </th>
-
-                  <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Created
-                  </th>
-
-                  <th className="w-16 px-5 py-4 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-
-              <tbody className="divide-y divide-slate-100">
-
-                {filteredCategories.map((category) => (
-                  <tr
-                    key={category.id}
-                    className="group transition hover:bg-slate-50/80"
-                  >
-
-                    {/* Category */}
-                    <td className="px-5 py-4">
-                      <div className="flex items-center gap-3">
-
-                       
-
-                        <div className="min-w-0">
-                          <p className="font-semibold text-slate-900">
-                            {category.name}
-                          </p>
-
-                          
-                        </div>
-
-                      </div>
-                    </td>
-
-                    {/* Description */}
-                    <td className="max-w-xs px-5 py-4">
-                      <p className="truncate text-sm text-slate-600">
-                        {category.description ||
-                          'No description'}
-                      </p>
-                    </td>
-
-                    {/* Products */}
-                    <td className="px-5 py-4">
-                      <span className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 py-1 text-sm font-semibold text-slate-700">
-                        {category.productCount}
-                      </span>
-                    </td>
-
-                    {/* Status */}
-                    <td className="px-5 py-4">
-                      {category.status === 'active' ? (
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                          Active
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
-                          <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
-                          Inactive
-                        </span>
-                      )}
-                    </td>
-
-                    {/* Created */}
-                    <td className="px-5 py-4 text-sm text-slate-500">
-                      {formatDate(category.createdAt)}
-                    </td>
-
-                    {/* Three Dot Menu */}
-                    <td className="px-5 py-4 text-right">
-
-                      <div
-                        className="relative inline-block"
-                        ref={
-                          openMenuId === category.id
-                            ? menuRef
-                            : null
-                        }
-                      >
-
-                        <button
-                          onClick={() =>
-                            setOpenMenuId(
-                              openMenuId === category.id
-                                ? null
-                                : category.id
-                            )
-                          }
-                          className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
-                          title="More actions"
-                        >
-                          <FiMoreVertical size={18} />
-                        </button>
-
-                        {openMenuId === category.id && (
-                          <div className="absolute right-0 top-11 z-30 w-48 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 text-left shadow-xl">
-
-                            <button
-                              onClick={() =>
-                                handleView(category)
-                              }
-                              className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50"
-                            >
-                              <FiEye size={16} />
-                              View Details
-                            </button>
-
-                            <button
-                              onClick={() =>
-                                handleOpenEdit(category)
-                              }
-                              className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50"
-                            >
-                              <FiEdit2 size={16} />
-                              Edit Category
-                            </button>
-
-                            <button
-                              onClick={() =>
-                                handleToggleStatus(category)
-                              }
-                              className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50"
-                            >
-                              <FiPower size={16} />
-
-                              {category.status ===
-                              'active'
-                                ? 'Deactivate'
-                                : 'Activate'}
-                            </button>
-
-                            <div className="my-1 border-t border-slate-100" />
-
-                            <button
-                              onClick={() =>
-                                handleDelete(category)
-                              }
-                              className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50"
-                            >
-                              <FiTrash2 size={16} />
-                              Delete Category
-                            </button>
-
-                          </div>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-
-              </tbody>
-            </table>
-          </div>
-
-          {/* ====================================================
-              MOBILE CARDS
-          ==================================================== */}
-
-          <div className="divide-y divide-slate-100 md:hidden">
-
-            {filteredCategories.map((category) => (
-              <div
-                key={category.id}
-                className="p-4"
-              >
-
-                <div className="flex items-start justify-between gap-3">
-
-                  <div className="flex min-w-0 items-center gap-3">
-
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-                      <FiFolder size={18} />
-                    </div>
-
-                    <div className="min-w-0">
-
-                      <h3 className="truncate font-semibold text-slate-900">
-                        {category.name}
-                      </h3>
-
-                      <p className="mt-1 truncate text-xs text-slate-500">
-                        {category.description ||
-                          'No description'}
-                      </p>
-
-                    </div>
-                  </div>
-
-                  {/* Mobile Three Dot */}
-                  <div
-                    className="relative shrink-0"
-                    ref={
-                      openMenuId === category.id
-                        ? menuRef
-                        : null
-                    }
-                  >
-
-                    <button
-                      onClick={() =>
-                        setOpenMenuId(
-                          openMenuId === category.id
-                            ? null
-                            : category.id
-                        )
-                      }
-                      className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100"
-                    >
-                      <FiMoreVertical size={18} />
-                    </button>
-
-                    {openMenuId === category.id && (
-                      <div className="absolute right-0 top-10 z-30 w-48 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-xl">
-
-                        <button
-                          onClick={() =>
-                            handleView(category)
-                          }
-                          className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50"
-                        >
-                          <FiEye size={16} />
-                          View Details
-                        </button>
-
-                        <button
-                          onClick={() =>
-                            handleOpenEdit(category)
-                          }
-                          className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50"
-                        >
-                          <FiEdit2 size={16} />
-                          Edit Category
-                        </button>
-
-                        <button
-                          onClick={() =>
-                            handleToggleStatus(category)
-                          }
-                          className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50"
-                        >
-                          <FiPower size={16} />
-
-                          {category.status === 'active'
-                            ? 'Deactivate'
-                            : 'Activate'}
-                        </button>
-
-                        <div className="my-1 border-t border-slate-100" />
-
-                        <button
-                          onClick={() =>
-                            handleDelete(category)
-                          }
-                          className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50"
-                        >
-                          <FiTrash2 size={16} />
-                          Delete Category
-                        </button>
-
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="mt-4 flex flex-wrap items-center gap-3">
-
-                  <span className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
-                    <FiPackage size={13} />
-                    {category.productCount} products
-                  </span>
-
-                  {category.status === 'active' ? (
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                      Active
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
-                      <span className="h-1.5 w-1.5 rounded-full bg-slate-400" />
-                      Inactive
-                    </span>
-                  )}
-
-                  <span className="text-xs text-slate-400">
-                    {formatDate(category.createdAt)}
-                  </span>
-
-                </div>
+                <p className="mt-3 text-sm text-slate-500">
+                  Loading categories...
+                </p>
               </div>
-            ))}
-          </div>
+            </div>
+          ) : filteredCategories.length === 0 ? (
 
-          {/* ====================================================
-              EMPTY STATE
-          ==================================================== */}
+            <div className="flex min-h-[300px] flex-col items-center justify-center px-6 text-center">
+              <FiFolder
+                size={42}
+                className="text-slate-300"
+              />
 
-          {filteredCategories.length === 0 && (
-            <div className="px-6 py-16 text-center">
-
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-slate-100 text-slate-400">
-                <FiFolder size={25} />
-              </div>
-
-              <h3 className="mt-4 text-base font-semibold text-slate-900">
-                No categories found
+              <h3 className="mt-4 text-lg font-semibold text-slate-900">
+                {categories.length === 0
+                  ? 'No categories found'
+                  : 'No matching categories'}
               </h3>
 
-              <p className="mx-auto mt-1 max-w-sm text-sm text-slate-500">
-                {searchTerm || statusFilter !== 'all'
-                  ? 'Try changing your search or filter.'
-                  : 'Create your first category to organize your products.'}
+              <p className="mt-1 max-w-md text-sm text-slate-500">
+                {categories.length === 0
+                  ? 'Create your first category to make it available in the Product form.'
+                  : 'Try changing your search or status filter.'}
               </p>
 
-              {(searchTerm ||
-                statusFilter !== 'all') && (
+              {categories.length === 0 && (
                 <button
-                  onClick={resetFilters}
-                  className="mt-5 inline-flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                  onClick={handleOpenCreate}
+                  className="mt-5 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
                 >
-                  <FiRefreshCw size={16} />
-                  Reset Filters
+                  <FiPlus size={17} />
+                  Add Category
                 </button>
               )}
+            </div>
 
-              {!searchTerm &&
-                statusFilter === 'all' && (
-                  <button
-                    onClick={handleOpenCreate}
-                    className="mt-5 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
-                  >
-                    <FiPlus size={17} />
-                    Add Category
-                  </button>
-                )}
+          ) : (
+
+            <div className="overflow-x-auto">
+
+              <table className="w-full min-w-[750px]">
+
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50">
+
+                    <th className="px-5 py-4 text-left text-xs font-semibold uppercase text-slate-500">
+                      Category
+                    </th>
+
+                    <th className="px-5 py-4 text-left text-xs font-semibold uppercase text-slate-500">
+                      Description
+                    </th>
+
+                    <th className="px-5 py-4 text-left text-xs font-semibold uppercase text-slate-500">
+                      Products
+                    </th>
+
+                    <th className="px-5 py-4 text-left text-xs font-semibold uppercase text-slate-500">
+                      Status
+                    </th>
+
+                    <th className="px-5 py-4 text-left text-xs font-semibold uppercase text-slate-500">
+                      Created
+                    </th>
+
+                    <th className="px-5 py-4 text-right text-xs font-semibold uppercase text-slate-500">
+                      Actions
+                    </th>
+
+                  </tr>
+                </thead>
+
+                <tbody className="divide-y divide-slate-100">
+
+                  {filteredCategories.map(
+                    (category) => (
+                      <tr
+                        key={category.id}
+                        className="hover:bg-slate-50"
+                      >
+
+                        <td className="px-5 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                              <FiFolder size={18} />
+                            </div>
+
+                            <div>
+                              <p className="font-semibold text-slate-900">
+                                {category.name}
+                              </p>
+                            </div>
+                          </div>
+                        </td>
+
+                        <td className="max-w-xs px-5 py-4">
+                          <p className="truncate text-sm text-slate-600">
+                            {category.description ||
+                              'No description'}
+                          </p>
+                        </td>
+
+                        <td className="px-5 py-4">
+                          <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-sm font-semibold text-slate-700">
+                            {category.productCount}
+                          </span>
+                        </td>
+
+                        <td className="px-5 py-4">
+                          {category.status ===
+                          'active' ? (
+                            <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                              Active
+                            </span>
+                          ) : (
+                            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
+                              Inactive
+                            </span>
+                          )}
+                        </td>
+
+                        <td className="px-5 py-4 text-sm text-slate-500">
+                          {formatDate(
+                            category.createdAt
+                          )}
+                        </td>
+
+                        <td className="px-5 py-4 text-right">
+
+                          <div
+                            className="relative inline-block"
+                            ref={
+                              openMenuId ===
+                              category.id
+                                ? menuRef
+                                : null
+                            }
+                          >
+
+                            <button
+                              onClick={() =>
+                                setOpenMenuId(
+                                  openMenuId ===
+                                    category.id
+                                    ? null
+                                    : category.id
+                                )
+                              }
+                              className="flex h-9 w-9 items-center justify-center rounded-lg hover:bg-slate-100"
+                            >
+                              <FiMoreVertical />
+                            </button>
+
+                            {openMenuId ===
+                              category.id && (
+                              <div className="absolute right-0 top-10 z-30 w-48 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 text-left shadow-xl">
+
+                                <button
+                                  onClick={() =>
+                                    handleView(
+                                      category
+                                    )
+                                  }
+                                  className="flex w-full items-center gap-3 px-4 py-2.5 text-sm hover:bg-slate-50"
+                                >
+                                  <FiEye />
+                                  View Details
+                                </button>
+
+                                <button
+                                  onClick={() =>
+                                    handleOpenEdit(
+                                      category
+                                    )
+                                  }
+                                  className="flex w-full items-center gap-3 px-4 py-2.5 text-sm hover:bg-slate-50"
+                                >
+                                  <FiEdit2 />
+                                  Edit Category
+                                </button>
+
+                                <button
+                                  onClick={() =>
+                                    handleToggleStatus(
+                                      category
+                                    )
+                                  }
+                                  className="flex w-full items-center gap-3 px-4 py-2.5 text-sm hover:bg-slate-50"
+                                >
+                                  <FiPower />
+
+                                  {category.status ===
+                                  'active'
+                                    ? 'Deactivate'
+                                    : 'Activate'}
+                                </button>
+
+                                <div className="my-1 border-t" />
+
+                                <button
+                                  onClick={() =>
+                                    handleDelete(
+                                      category
+                                    )
+                                  }
+                                  className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50"
+                                >
+                                  <FiTrash2 />
+                                  Delete Category
+                                </button>
+
+                              </div>
+                            )}
+
+                          </div>
+
+                        </td>
+
+                      </tr>
+                    )
+                  )}
+
+                </tbody>
+
+              </table>
+
             </div>
           )}
 
-          {/* ====================================================
-              FOOTER
-          ==================================================== */}
-
-          {filteredCategories.length > 0 && (
-            <div className="border-t border-slate-200 bg-slate-50 px-5 py-4">
-              <p className="text-sm text-slate-500">
-                Showing{' '}
-                <span className="font-semibold text-slate-700">
-                  {filteredCategories.length}
-                </span>{' '}
-                of{' '}
-                <span className="font-semibold text-slate-700">
-                  {categories.length}
-                </span>{' '}
-                categories
-              </p>
-            </div>
-          )}
         </div>
       </div>
 
@@ -1131,13 +1070,11 @@ const Categories = () => {
       ======================================================== */}
 
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
 
-          <div className="w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl">
+          <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl">
 
-            {/* Header */}
-            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
-
+            <div className="flex items-center justify-between border-b p-5">
               <div>
                 <h2 className="text-lg font-bold text-slate-900">
                   {editingCategory
@@ -1147,112 +1084,96 @@ const Categories = () => {
 
                 <p className="mt-1 text-sm text-slate-500">
                   {editingCategory
-                    ? 'Update the category information.'
-                    : 'Create a category for your spare parts.'}
+                    ? 'Update category information.'
+                    : 'Create a new product category.'}
                 </p>
               </div>
 
               <button
-                onClick={handleCloseModal}
-                disabled={isSaving}
-                className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50"
+                onClick={() =>
+                  !isSaving &&
+                  setIsModalOpen(false)
+                }
+                className="rounded-lg p-2 text-slate-400 hover:bg-slate-100"
               >
                 <FiX size={20} />
               </button>
-
             </div>
 
-            {/* Form */}
             <form
               onSubmit={handleSubmit}
-              className="space-y-5 p-6"
+              className="space-y-5 p-5"
             >
 
-              {/* Name */}
               <div>
-
-                <label
-                  htmlFor="name"
-                  className="mb-2 block text-sm font-semibold text-slate-700"
-                >
+                <label className="mb-1.5 block text-sm font-semibold text-slate-700">
                   Category Name
-                  <span className="ml-1 text-red-500">
-                    *
-                  </span>
                 </label>
 
                 <input
-                  id="name"
                   name="name"
-                  type="text"
                   value={formData.name}
-                  onChange={handleChange}
+                  onChange={(event) =>
+                    setFormData({
+                      ...formData,
+                      name: event.target.value,
+                    })
+                  }
                   placeholder="e.g. Engine Parts"
-                  className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition ${
+                  className={`w-full rounded-xl border px-4 py-3 outline-none ${
                     errors.name
-                      ? 'border-red-400 focus:ring-2 focus:ring-red-100'
-                      : 'border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
+                      ? 'border-red-400'
+                      : 'border-slate-300'
                   }`}
                 />
 
                 {errors.name && (
-                  <div className="mt-2 flex items-center gap-1.5 text-xs text-red-600">
-                    <FiAlertCircle size={14} />
+                  <p className="mt-1 text-xs text-red-600">
                     {errors.name}
-                  </div>
+                  </p>
                 )}
-
               </div>
 
-              {/* Description */}
               <div>
-
-                <div className="mb-2 flex items-center justify-between">
-
-                  <label
-                    htmlFor="description"
-                    className="text-sm font-semibold text-slate-700"
-                  >
-                    Description
-                  </label>
-
-                  <span className="text-xs text-slate-400">
-                    {formData.description.length}/500
-                  </span>
-
-                </div>
+                <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                  Description
+                </label>
 
                 <textarea
-                  id="description"
                   name="description"
                   value={formData.description}
-                  onChange={handleChange}
+                  onChange={(event) =>
+                    setFormData({
+                      ...formData,
+                      description:
+                        event.target.value,
+                    })
+                  }
                   rows={4}
-                  placeholder="Describe the products in this category..."
-                  className={`w-full resize-none rounded-xl border px-4 py-3 text-sm outline-none transition ${
+                  placeholder="Describe this category..."
+                  className={`w-full rounded-xl border px-4 py-3 outline-none ${
                     errors.description
-                      ? 'border-red-400 focus:ring-2 focus:ring-red-100'
-                      : 'border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
+                      ? 'border-red-400'
+                      : 'border-slate-300'
                   }`}
                 />
 
                 {errors.description && (
-                  <div className="mt-2 flex items-center gap-1.5 text-xs text-red-600">
-                    <FiAlertCircle size={14} />
+                  <p className="mt-1 text-xs text-red-600">
                     {errors.description}
-                  </div>
+                  </p>
                 )}
-
               </div>
 
-              {/* Actions */}
-              <div className="flex flex-col-reverse gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:justify-end">
+              <div className="flex justify-end gap-3 border-t pt-5">
 
                 <button
                   type="button"
-                  onClick={handleCloseModal}
                   disabled={isSaving}
-                  className="rounded-xl border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                  onClick={() =>
+                    setIsModalOpen(false)
+                  }
+                  className="rounded-xl border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700"
                 >
                   Cancel
                 </button>
@@ -1260,268 +1181,163 @@ const Categories = () => {
                 <button
                   type="submit"
                   disabled={isSaving}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
                 >
-
                   {isSaving && (
-                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                    <FiRefreshCw
+                      className="animate-spin"
+                      size={16}
+                    />
                   )}
 
                   {editingCategory
                     ? 'Update Category'
                     : 'Create Category'}
-
                 </button>
 
               </div>
+
             </form>
+
           </div>
         </div>
       )}
 
       {/* ========================================================
-          VIEW CATEGORY MODAL
+          VIEW MODAL
       ======================================================== */}
 
-      {isViewModalOpen && viewingCategory && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4 backdrop-blur-sm">
+      {isViewModalOpen &&
+        viewingCategory && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
 
-          <div className="w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl">
 
-            {/* Header */}
-            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
+              <div className="flex items-center justify-between border-b p-5">
 
-              <div className="flex items-center gap-3">
-
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-                  <FiFolder size={21} />
-                </div>
-
-                <div>
-                  <h2 className="font-bold text-slate-900">
-                    {viewingCategory.name}
-                  </h2>
-
-                  <p className="text-xs text-slate-400">
-                    Category Details
-                  </p>
-                </div>
-
-              </div>
-
-              <button
-                onClick={() =>
-                  setIsViewModalOpen(false)
-                }
-                className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-              >
-                <FiX size={20} />
-              </button>
-
-            </div>
-
-            {/* Details */}
-            <div className="space-y-5 p-6">
-
-              {/* Status */}
-              <div className="flex items-center justify-between rounded-xl bg-slate-50 p-4">
-
-                <div>
-                  <p className="text-xs font-medium text-slate-400">
-                    Status
-                  </p>
-
-                  <p className="mt-1 text-sm font-semibold text-slate-900">
-                    {viewingCategory.status ===
-                    'active'
-                      ? 'Active'
-                      : 'Inactive'}
-                  </p>
-                </div>
-
-                {viewingCategory.status ===
-                'active' ? (
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                    Active
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-200 px-3 py-1 text-xs font-semibold text-slate-600">
-                    Inactive
-                  </span>
-                )}
-
-              </div>
-
-              {/* Description */}
-              <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                  Description
-                </p>
-
-                <p className="mt-2 text-sm leading-6 text-slate-700">
-                  {viewingCategory.description ||
-                    'No description provided.'}
-                </p>
-              </div>
-
-              {/* Product Count */}
-              <div className="grid grid-cols-2 gap-3">
-
-                <div className="rounded-xl border border-slate-200 p-4">
-
-                  <div className="flex items-center gap-2 text-slate-400">
-                    <FiPackage size={16} />
-                    <span className="text-xs font-medium">
-                      Products
-                    </span>
-                  </div>
-
-                  <p className="mt-2 text-2xl font-bold text-slate-900">
-                    {viewingCategory.productCount}
-                  </p>
-
-                </div>
-
-                <div className="rounded-xl border border-slate-200 p-4">
-
-                  <div className="flex items-center gap-2 text-slate-400">
-                    <FiCalendar size={16} />
-                    <span className="text-xs font-medium">
-                      Created
-                    </span>
-                  </div>
-
-                  <p className="mt-2 text-sm font-semibold text-slate-900">
-                    {formatDate(
-                      viewingCategory.createdAt
-                    )}
-                  </p>
-
-                </div>
-
-              </div>
-
-              {/* Metadata */}
-              <div className="border-t border-slate-100 pt-4">
-
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-400">
-                    Category ID
-                  </span>
-
-                  <span className="font-medium text-slate-700">
-                    {viewingCategory.id}
-                  </span>
-                </div>
-
-                <div className="mt-3 flex justify-between text-sm">
-                  <span className="text-slate-400">
-                    Last Updated
-                  </span>
-
-                  <span className="font-medium text-slate-700">
-                    {formatDate(
-                      viewingCategory.updatedAt
-                    )}
-                  </span>
-                </div>
-
-              </div>
-
-              {/* Close */}
-              <div className="flex justify-end border-t border-slate-100 pt-5">
+                <h2 className="text-lg font-bold">
+                  Category Details
+                </h2>
 
                 <button
                   onClick={() =>
                     setIsViewModalOpen(false)
                   }
-                  className="rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-slate-800"
+                  className="rounded-lg p-2 hover:bg-slate-100"
                 >
-                  Close
+                  <FiX />
                 </button>
 
               </div>
 
+              <div className="space-y-5 p-5">
+
+                <div>
+                  <p className="text-xs font-semibold uppercase text-slate-400">
+                    Category
+                  </p>
+
+                  <p className="mt-1 text-lg font-bold text-slate-900">
+                    {viewingCategory.name}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-xs font-semibold uppercase text-slate-400">
+                    Description
+                  </p>
+
+                  <p className="mt-1 text-sm text-slate-600">
+                    {viewingCategory.description ||
+                      'No description'}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+
+                  <div>
+                    <p className="text-xs text-slate-400">
+                      Products
+                    </p>
+
+                    <p className="mt-1 font-semibold">
+                      {viewingCategory.productCount}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="text-xs text-slate-400">
+                      Status
+                    </p>
+
+                    <p className="mt-1 font-semibold">
+                      {viewingCategory.status ===
+                      'active'
+                        ? 'Active'
+                        : 'Inactive'}
+                    </p>
+                  </div>
+
+                </div>
+
+              </div>
+
             </div>
+
           </div>
-        </div>
-      )}
+        )}
 
       {/* ========================================================
           DELETE CONFIRMATION
       ======================================================== */}
 
       {categoryToDelete && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/50 px-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 p-4">
 
           <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
 
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-red-600">
-              <FiTrash2 size={21} />
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-red-50 text-red-600">
+              <FiTrash2 size={22} />
             </div>
 
-            <h2 className="mt-4 text-lg font-bold text-slate-900">
+            <h2 className="mt-4 text-lg font-bold">
               Delete Category?
             </h2>
 
-            <p className="mt-2 text-sm leading-6 text-slate-500">
-
-              Are you sure you want to delete{' '}
-
-              <span className="font-semibold text-slate-700">
+            <p className="mt-2 text-sm text-slate-500">
+              Are you sure you want to delete
+              <strong className="mx-1">
                 {categoryToDelete.name}
-              </span>
+              </strong>
               ?
-
             </p>
 
-            {categoryToDelete.productCount > 0 && (
-              <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3">
+            <p className="mt-2 text-xs text-slate-400">
+              The backend will prevent deletion
+              if products are still using this
+              category.
+            </p>
 
-                <div className="flex gap-2">
-
-                  <FiAlertCircle
-                    className="mt-0.5 shrink-0 text-amber-600"
-                    size={17}
-                  />
-
-                  <p className="text-sm leading-5 text-amber-800">
-
-                    This category contains{' '}
-
-                    <strong>
-                      {categoryToDelete.productCount}
-                    </strong>{' '}
-
-                    products. In the real system, the backend
-                    should prevent deletion until those products
-                    are reassigned.
-
-                  </p>
-
-                </div>
-
-              </div>
-            )}
-
-            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <div className="mt-6 flex justify-end gap-3">
 
               <button
+                disabled={isSaving}
                 onClick={() =>
                   setCategoryToDelete(null)
                 }
-                className="rounded-xl border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold"
               >
                 Cancel
               </button>
 
               <button
+                disabled={isSaving}
                 onClick={confirmDelete}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-red-700"
+                className="rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white"
               >
-                <FiTrash2 size={16} />
-                Delete Category
+                {isSaving
+                  ? 'Deleting...'
+                  : 'Delete'}
               </button>
 
             </div>
@@ -1531,73 +1347,52 @@ const Categories = () => {
       )}
 
       {/* ========================================================
-          ACTIVATE / DEACTIVATE CONFIRMATION
+          TOGGLE CONFIRMATION
       ======================================================== */}
 
       {categoryToToggle && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/50 px-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 p-4">
 
           <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
 
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-50 text-blue-600">
-              <FiPower size={21} />
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+              <FiPower size={22} />
             </div>
 
-            <h2 className="mt-4 text-lg font-bold text-slate-900">
-
-              {categoryToToggle.status === 'active'
+            <h2 className="mt-4 text-lg font-bold">
+              {categoryToToggle.status ===
+              'active'
                 ? 'Deactivate Category?'
                 : 'Activate Category?'}
-
             </h2>
 
-            <p className="mt-2 text-sm leading-6 text-slate-500">
-
-              Are you sure you want to{' '}
-
-              {categoryToToggle.status === 'active'
-                ? 'deactivate'
-                : 'activate'}{' '}
-
-              <span className="font-semibold text-slate-700">
-                {categoryToToggle.name}
-              </span>
-              ?
-
+            <p className="mt-2 text-sm text-slate-500">
+              {categoryToToggle.status ===
+              'active'
+                ? 'This category will no longer be available for new products.'
+                : 'This category will become available for products again.'}
             </p>
 
-            {categoryToToggle.status ===
-              'active' && (
-              <div className="mt-4 rounded-xl bg-amber-50 p-3 text-sm leading-5 text-amber-800">
-
-                Deactivated categories should no longer be
-                available when creating or assigning new
-                products.
-
-              </div>
-            )}
-
-            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <div className="mt-6 flex justify-end gap-3">
 
               <button
+                disabled={isSaving}
                 onClick={() =>
                   setCategoryToToggle(null)
                 }
-                className="rounded-xl border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold"
               >
                 Cancel
               </button>
 
               <button
+                disabled={isSaving}
                 onClick={confirmToggleStatus}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
+                className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white"
               >
-                <FiPower size={16} />
-
-                {categoryToToggle.status === 'active'
-                  ? 'Deactivate'
-                  : 'Activate'}
-
+                {isSaving
+                  ? 'Saving...'
+                  : 'Confirm'}
               </button>
 
             </div>
@@ -1605,6 +1400,7 @@ const Categories = () => {
           </div>
         </div>
       )}
+
     </div>
   );
 };

@@ -13,14 +13,24 @@ import RegisterPage from './pages/RegisterPage';
 
 // Protected pages
 import Dashboard from './pages/Dashboard';
+
 import Inventory from './pages/Inventory';
+
+import ProductDetails from './pages/ProductDetails';
+
 import Categories from './pages/Categories';
+
 import Suppliers from './pages/Suppliers';
+
 import Purchases from './pages/Purchases';
+
 import Sales from './pages/Sales';
 import SalesHistory from './pages/SalesHistory';
 import Invoice from './pages/Invoice';
 import Reports from './pages/Reports';
+
+import Notifications from './pages/Notifications';
+
 import Settings from './pages/Settings';
 import Notifications from './pages/Notifications';
 import CompanyManagement from './pages/CompanyManagement';
@@ -33,6 +43,7 @@ import MainLayout from './components/layout/MainLayout';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 
 function App() {
+
   return (
     <AuthProvider>
       <Router>
@@ -84,7 +95,23 @@ function App() {
               }
             />
 
-            {/* Categories */}
+            {/* =================================================
+                PRODUCT DETAILS
+            ================================================= */}
+
+            <Route
+              path="/inventory/:id"
+              element={
+                <MainLayout>
+                  <ProductDetails />
+                </MainLayout>
+              }
+            />
+
+            {/* =================================================
+                CATEGORIES
+            ================================================= */}
+
             <Route
               path="/categories"
               element={

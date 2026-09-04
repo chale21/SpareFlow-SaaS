@@ -1,4 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   FiPlus,
   FiSearch,
@@ -14,12 +20,10 @@ import {
   FiAlertCircle,
   FiEye,
   FiPower,
-  FiShoppingBag,
-  FiChevronDown,
-  FiCalendar,
+  FiRefreshCw,
 } from 'react-icons/fi';
 
-import supplierService from '../services/supplierService';
+import { supplierService } from '../services/productService';
 
 const Suppliers = () => {
   // ============================================================
@@ -28,95 +32,217 @@ const Suppliers = () => {
 
   const [suppliers, setSuppliers] = useState([]);
 
-  const [isLoading, setIsLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
   const [error, setError] = useState('');
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [locationFilter, setLocationFilter] = useState('all');
+  const [statusFilter, setStatusFilter] =
+    useState('all');
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingSupplier, setEditingSupplier] = useState(null);
-  const [viewingSupplier, setViewingSupplier] = useState(null);
-  const [supplierToDelete, setSupplierToDelete] = useState(null);
+  const [locationFilter, setLocationFilter] =
+    useState('all');
 
-  const [openMenuId, setOpenMenuId] = useState(null);
+  const [isModalOpen, setIsModalOpen] =
+    useState(false);
+
+  const [editingSupplier, setEditingSupplier] =
+    useState(null);
+
+  const [viewingSupplier, setViewingSupplier] =
+    useState(null);
+
+  const [supplierToDelete, setSupplierToDelete] =
+    useState(null);
+
+  const [supplierToToggle, setSupplierToToggle] =
+    useState(null);
+
+  const [openMenuId, setOpenMenuId] =
+    useState(null);
+
+  const [notification, setNotification] =
+    useState(null);
 
   const [formData, setFormData] = useState({
-    supplierName: '',
+    name: '',
+    contactPerson: '',
     phone: '',
     email: '',
     address: '',
-    isActive: true,
+    city: '',
+    country: 'Ethiopia',
+    notes: '',
   });
 
   const [errors, setErrors] = useState({});
 
-  const [notification, setNotification] = useState(null);
+  const menuRef = useRef(null);
 
-  // Purchase history
-  const [supplierPurchases, setSupplierPurchases] = useState([]);
-  const [isLoadingPurchases, setIsLoadingPurchases] = useState(false);
+  // ============================================================
+  // NORMALIZE SUPPLIER
+  // ============================================================
+
+  const normalizeSupplier = useCallback(
+    (supplier) => {
+      return {
+        ...supplier,
+
+        id:
+          supplier?._id ??
+          supplier?.id ??
+          '',
+
+        name:
+          supplier?.supplierName ??
+          supplier?.name ??
+          '',
+
+        phone:
+          supplier?.phone ??
+          '',
+
+        email:
+          supplier?.email ??
+          '',
+
+        address:
+          supplier?.address ??
+          '',
+
+        city:
+          supplier?.city ??
+          '',
+
+        country:
+          supplier?.country ??
+          'Ethiopia',
+
+        contactPerson:
+          supplier?.contactPerson ??
+          '',
+
+        notes:
+          supplier?.notes ??
+          '',
+
+        status:
+          supplier?.isActive === false
+            ? 'inactive'
+            : supplier?.status === 'inactive'
+            ? 'inactive'
+            : 'active',
+
+        productsSupplied:
+          Number(
+            supplier?.productsSupplied ??
+            supplier?.productCount ??
+            0
+          ),
+
+        purchaseCount:
+          Number(
+            supplier?.purchaseCount ??
+            0
+          ),
+
+        totalPurchaseValue:
+          Number(
+            supplier?.totalPurchaseValue ??
+            0
+          ),
+
+        lastPurchase:
+          supplier?.lastPurchase ??
+          null,
+      };
+    },
+    []
+  );
 
   // ============================================================
   // LOAD SUPPLIERS
   // ============================================================
 
-  const loadSuppliers = async () => {
-    try {
-      setIsLoading(true);
+  const loadSuppliers = useCallback(
+    async () => {
+      setLoading(true);
       setError('');
 
-      const response = await supplierService.getSuppliers();
+      try {
+        const data =
+          await supplierService.list();
 
-      /*
-       * Backend response expected:
-       *
-       * {
-       *   success: true,
-       *   message: "...",
-       *   data: [...]
-       * }
-       */
+        const normalized =
+          Array.isArray(data)
+            ? data.map(
+                normalizeSupplier
+              )
+            : [];
 
-      if (response?.success) {
-        setSuppliers(response.data || []);
-      } else {
-        setSuppliers([]);
-        setError(
-          response?.message || 'Failed to load suppliers.'
+        setSuppliers(normalized);
+      } catch (err) {
+        console.error(
+          'Failed to load suppliers:',
+          err
         );
+
+        setError(
+          err?.response?.data?.message ||
+            err?.message ||
+            'Failed to load suppliers.'
+        );
+
+        setSuppliers([]);
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      console.error('Error loading suppliers:', err);
-
-      const message =
-        err?.response?.data?.message ||
-        err?.message ||
-        'Failed to load suppliers.';
-
-      setError(message);
-      setSuppliers([]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // ============================================================
-  // INITIAL LOAD
-  // ============================================================
+    },
+    [normalizeSupplier]
+  );
 
   useEffect(() => {
     loadSuppliers();
+  }, [loadSuppliers]);
+
+  // ============================================================
+  // CLOSE MENU
+  // ============================================================
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        menuRef.current &&
+        !menuRef.current.contains(
+          event.target
+        )
+      ) {
+        setOpenMenuId(null);
+      }
+    };
+
+    document.addEventListener(
+      'mousedown',
+      handleClickOutside
+    );
+
+    return () => {
+      document.removeEventListener(
+        'mousedown',
+        handleClickOutside
+      );
+    };
   }, []);
 
   // ============================================================
   // NOTIFICATION
   // ============================================================
 
-  const showNotification = (type, message) => {
+  const showNotification = (
+    type,
+    message
+  ) => {
     setNotification({
       type,
       message,
@@ -124,516 +250,95 @@ const Suppliers = () => {
 
     setTimeout(() => {
       setNotification(null);
-    }, 3000);
-  };
-
-  // ============================================================
-  // FORM RESET
-  // ============================================================
-
-  const resetForm = () => {
-    setFormData({
-      supplierName: '',
-      phone: '',
-      email: '',
-      address: '',
-      isActive: true,
-    });
-
-    setErrors({});
-  };
-
-  // ============================================================
-  // OPEN CREATE
-  // ============================================================
-
-  const handleOpenCreate = () => {
-    setEditingSupplier(null);
-    resetForm();
-    setIsModalOpen(true);
-    setOpenMenuId(null);
-  };
-
-  // ============================================================
-  // OPEN EDIT
-  // ============================================================
-
-  const handleOpenEdit = (supplier) => {
-    setEditingSupplier(supplier);
-
-    setFormData({
-      supplierName: supplier.supplierName || '',
-      phone: supplier.phone || '',
-      email: supplier.email || '',
-      address: supplier.address || '',
-      isActive: supplier.isActive !== false,
-    });
-
-    setErrors({});
-    setIsModalOpen(true);
-    setOpenMenuId(null);
-  };
-
-  // ============================================================
-  // CLOSE MODAL
-  // ============================================================
-
-  const handleCloseModal = () => {
-    if (isSaving) return;
-
-    setIsModalOpen(false);
-    setEditingSupplier(null);
-    resetForm();
-  };
-
-  // ============================================================
-  // FORM CHANGE
-  // ============================================================
-
-  const handleChange = (event) => {
-    const { name, value } = event.target;
-
-    setFormData((previous) => ({
-      ...previous,
-      [name]: value,
-    }));
-
-    if (errors[name]) {
-      setErrors((previous) => ({
-        ...previous,
-        [name]: '',
-      }));
-    }
-  };
-
-  // ============================================================
-  // STATUS CHANGE
-  // ============================================================
-
-  const handleStatusChange = (event) => {
-    const value = event.target.value;
-
-    setFormData((previous) => ({
-      ...previous,
-      isActive: value === 'active',
-    }));
-  };
-
-  // ============================================================
-  // VALIDATION
-  // ============================================================
-
-  const validateForm = () => {
-    const newErrors = {};
-
-    const supplierName =
-      formData.supplierName.trim();
-
-    const phone =
-      formData.phone.trim();
-
-    const email =
-      formData.email.trim();
-
-    if (!supplierName) {
-      newErrors.supplierName =
-        'Supplier name is required.';
-    } else if (supplierName.length < 2) {
-      newErrors.supplierName =
-        'Supplier name must contain at least 2 characters.';
-    } else if (supplierName.length > 100) {
-      newErrors.supplierName =
-        'Supplier name cannot exceed 100 characters.';
-    }
-
-    if (!phone) {
-      newErrors.phone =
-        'Phone number is required.';
-    } else if (phone.length > 30) {
-      newErrors.phone =
-        'Phone number cannot exceed 30 characters.';
-    }
-
-    if (email) {
-      const emailRegex =
-        /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-      if (!emailRegex.test(email)) {
-        newErrors.email =
-          'Please enter a valid email address.';
-      }
-    }
-
-    if (formData.address.trim().length > 200) {
-      newErrors.address =
-        'Address cannot exceed 200 characters.';
-    }
-
-    /*
-     * We intentionally do NOT perform duplicate validation
-     * against the frontend state.
-     *
-     * The backend has:
-     *
-     * companyId + supplierName = unique
-     *
-     * so the backend should be the final authority.
-     */
-
-    setErrors(newErrors);
-
-    return Object.keys(newErrors).length === 0;
-  };
-
-  // ============================================================
-  // CREATE / UPDATE
-  // ============================================================
-
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-
-    if (!validateForm()) {
-      return;
-    }
-
-    setIsSaving(true);
-
-    try {
-      const cleanData = {
-        supplierName:
-          formData.supplierName.trim(),
-
-        phone:
-          formData.phone.trim(),
-
-        email:
-          formData.email.trim(),
-
-        address:
-          formData.address.trim(),
-
-        isActive:
-          formData.isActive,
-      };
-
-      let response;
-
-      // --------------------------------------------------------
-      // UPDATE
-      // --------------------------------------------------------
-
-      if (editingSupplier) {
-        response =
-          await supplierService.updateSupplier(
-            editingSupplier._id,
-            cleanData
-          );
-
-        if (!response?.success) {
-          throw new Error(
-            response?.message ||
-              'Failed to update supplier.'
-          );
-        }
-
-        showNotification(
-          'success',
-          'Supplier updated successfully.'
-        );
-      }
-
-      // --------------------------------------------------------
-      // CREATE
-      // --------------------------------------------------------
-
-      else {
-        response =
-          await supplierService.createSupplier(
-            cleanData
-          );
-
-        if (!response?.success) {
-          throw new Error(
-            response?.message ||
-              'Failed to create supplier.'
-          );
-        }
-
-        showNotification(
-          'success',
-          'Supplier created successfully.'
-        );
-      }
-
-      /*
-       * Reload from backend instead of manually modifying
-       * frontend state.
-       *
-       * This guarantees the UI represents the database.
-       */
-
-      await loadSuppliers();
-
-      handleCloseModal();
-    } catch (err) {
-      console.error(
-        'Supplier save error:',
-        err
-      );
-
-      const message =
-        err?.response?.data?.message ||
-        err?.message ||
-        'Failed to save supplier.';
-
-      showNotification(
-        'error',
-        message
-      );
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  // ============================================================
-  // VIEW DETAILS
-  // ============================================================
-
-  const handleViewDetails = async (supplier) => {
-    setViewingSupplier(supplier);
-    setOpenMenuId(null);
-
-    /*
-     * Load purchase history from backend.
-     */
-
-    try {
-      setIsLoadingPurchases(true);
-      setSupplierPurchases([]);
-
-      const response =
-        await supplierService.getSupplierPurchases(
-          supplier._id
-        );
-
-      if (response?.success) {
-        setSupplierPurchases(
-          response.data || []
-        );
-      } else {
-        showNotification(
-          'error',
-          response?.message ||
-            'Failed to load purchase history.'
-        );
-      }
-    } catch (err) {
-      console.error(
-        'Error loading supplier purchases:',
-        err
-      );
-
-      showNotification(
-        'error',
-        err?.response?.data?.message ||
-          'Failed to load purchase history.'
-      );
-    } finally {
-      setIsLoadingPurchases(false);
-    }
-  };
-
-  // ============================================================
-  // TOGGLE STATUS
-  // ============================================================
-
-  const handleToggleStatus = async (supplier) => {
-    const newStatus =
-      !supplier.isActive;
-
-    try {
-      setOpenMenuId(null);
-
-      const response =
-        await supplierService.updateSupplier(
-          supplier._id,
-          {
-            isActive: newStatus,
-          }
-        );
-
-      if (!response?.success) {
-        throw new Error(
-          response?.message ||
-            'Failed to update supplier status.'
-        );
-      }
-
-      showNotification(
-        'success',
-        `${supplier.supplierName} has been ${
-          newStatus
-            ? 'activated'
-            : 'deactivated'
-        }.`
-      );
-
-      await loadSuppliers();
-    } catch (err) {
-      console.error(
-        'Supplier status update error:',
-        err
-      );
-
-      showNotification(
-        'error',
-        err?.response?.data?.message ||
-          err?.message ||
-          'Failed to update supplier status.'
-      );
-    }
-  };
-
-  // ============================================================
-  // DELETE
-  // ============================================================
-
-  const handleDelete = (supplier) => {
-    setSupplierToDelete(supplier);
-    setOpenMenuId(null);
-  };
-
-  // ============================================================
-  // CONFIRM DELETE
-  // ============================================================
-
-  const confirmDelete = async () => {
-    if (!supplierToDelete) return;
-
-    try {
-      const response =
-        await supplierService.deleteSupplier(
-          supplierToDelete._id
-        );
-
-      if (!response?.success) {
-        throw new Error(
-          response?.message ||
-            'Failed to delete supplier.'
-        );
-      }
-
-      showNotification(
-        'success',
-        `${supplierToDelete.supplierName} deleted successfully.`
-      );
-
-      setSupplierToDelete(null);
-
-      await loadSuppliers();
-    } catch (err) {
-      console.error(
-        'Supplier delete error:',
-        err
-      );
-
-      const message =
-        err?.response?.data?.message ||
-        err?.message ||
-        'Failed to delete supplier.';
-
-      showNotification(
-        'error',
-        message
-      );
-
-      /*
-       * Keep confirmation modal open when deletion fails.
-       * This allows the user to see the error.
-       */
-    }
+    }, 3500);
   };
 
   // ============================================================
   // LOCATIONS
   // ============================================================
 
-  /*
-   * Your backend does NOT have a city field.
-   *
-   * Therefore location filtering is based on the address field.
-   *
-   * We collect unique addresses instead of pretending
-   * there is a city field in the backend.
-   */
-
   const locations = useMemo(() => {
-    const uniqueAddresses = [
+    return [
       ...new Set(
         suppliers
-          .map((supplier) =>
-            supplier.address?.trim()
+          .map(
+            (supplier) =>
+              supplier.city
           )
           .filter(Boolean)
       ),
-    ];
-
-    return uniqueAddresses.sort();
+    ].sort();
   }, [suppliers]);
 
   // ============================================================
-  // FILTER SUPPLIERS
+  // FILTER
   // ============================================================
 
-  const filteredSuppliers = useMemo(() => {
-    const query =
-      searchTerm.trim().toLowerCase();
+  const filteredSuppliers =
+    useMemo(() => {
+      const query =
+        searchTerm
+          .trim()
+          .toLowerCase();
 
-    return suppliers.filter((supplier) => {
-      const supplierName =
-        supplier.supplierName?.toLowerCase() || '';
+      return suppliers.filter(
+        (supplier) => {
+          const name =
+            supplier.name
+              ?.toLowerCase() ||
+            '';
 
-      const phone =
-        supplier.phone?.toLowerCase() || '';
+          const contact =
+            supplier.contactPerson
+              ?.toLowerCase() ||
+            '';
 
-      const email =
-        supplier.email?.toLowerCase() || '';
+          const phone =
+            supplier.phone
+              ?.toLowerCase() ||
+            '';
 
-      const address =
-        supplier.address?.toLowerCase() || '';
+          const email =
+            supplier.email
+              ?.toLowerCase() ||
+            '';
 
-      const matchesSearch =
-        !query ||
-        supplierName.includes(query) ||
-        phone.includes(query) ||
-        email.includes(query) ||
-        address.includes(query);
+          const city =
+            supplier.city
+              ?.toLowerCase() ||
+            '';
 
-      const supplierStatus =
-        supplier.isActive
-          ? 'active'
-          : 'inactive';
+          const matchesSearch =
+            !query ||
+            name.includes(query) ||
+            contact.includes(query) ||
+            phone.includes(query) ||
+            email.includes(query) ||
+            city.includes(query);
 
-      const matchesStatus =
-        statusFilter === 'all' ||
-        supplierStatus === statusFilter;
+          const matchesStatus =
+            statusFilter === 'all' ||
+            supplier.status ===
+              statusFilter;
 
-      const matchesLocation =
-        locationFilter === 'all' ||
-        supplier.address === locationFilter;
+          const matchesLocation =
+            locationFilter === 'all' ||
+            supplier.city ===
+              locationFilter;
 
-      return (
-        matchesSearch &&
-        matchesStatus &&
-        matchesLocation
+          return (
+            matchesSearch &&
+            matchesStatus &&
+            matchesLocation
+          );
+        }
       );
-    });
-  }, [
-    suppliers,
-    searchTerm,
-    statusFilter,
-    locationFilter,
-  ]);
+    }, [
+      suppliers,
+      searchTerm,
+      statusFilter,
+      locationFilter,
+    ]);
 
   // ============================================================
   // STATISTICS
@@ -644,31 +349,397 @@ const Suppliers = () => {
 
   const activeSuppliers =
     suppliers.filter(
-      (supplier) => supplier.isActive
+      (supplier) =>
+        supplier.status === 'active'
     ).length;
 
   const inactiveSuppliers =
     suppliers.filter(
-      (supplier) => !supplier.isActive
+      (supplier) =>
+        supplier.status === 'inactive'
     ).length;
+
+  const totalPurchaseValue =
+    suppliers.reduce(
+      (total, supplier) =>
+        total +
+        Number(
+          supplier.totalPurchaseValue ||
+            0
+        ),
+      0
+    );
+
+  // ============================================================
+  // FORM RESET
+  // ============================================================
+
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      contactPerson: '',
+      phone: '',
+      email: '',
+      address: '',
+      city: '',
+      country: 'Ethiopia',
+      notes: '',
+    });
+
+    setErrors({});
+  };
+
+  // ============================================================
+  // CREATE
+  // ============================================================
+
+  const handleOpenCreate = () => {
+    setEditingSupplier(null);
+    resetForm();
+    setIsModalOpen(true);
+    setOpenMenuId(null);
+  };
+
+  // ============================================================
+  // EDIT
+  // ============================================================
+
+  const handleOpenEdit = (
+    supplier
+  ) => {
+    setEditingSupplier(supplier);
+
+    setFormData({
+      name: supplier.name || '',
+      contactPerson:
+        supplier.contactPerson ||
+        '',
+      phone: supplier.phone || '',
+      email: supplier.email || '',
+      address:
+        supplier.address || '',
+      city: supplier.city || '',
+      country:
+        supplier.country ||
+        'Ethiopia',
+      notes: supplier.notes || '',
+    });
+
+    setErrors({});
+    setIsModalOpen(true);
+    setOpenMenuId(null);
+  };
+
+  // ============================================================
+  // VIEW
+  // ============================================================
+
+  const handleView = (supplier) => {
+    setViewingSupplier(supplier);
+    setOpenMenuId(null);
+  };
+
+  // ============================================================
+  // VALIDATION
+  // ============================================================
+
+  const validateForm = () => {
+    const newErrors = {};
+
+    const name =
+      formData.name.trim();
+
+    const phone =
+      formData.phone.trim();
+
+    const email =
+      formData.email.trim();
+
+    if (!name) {
+      newErrors.name =
+        'Supplier name is required.';
+    } else if (name.length < 2) {
+      newErrors.name =
+        'Supplier name must contain at least 2 characters.';
+    }
+
+    if (!phone) {
+      newErrors.phone =
+        'Phone number is required.';
+    }
+
+    if (
+      email &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+        email
+      )
+    ) {
+      newErrors.email =
+        'Please enter a valid email address.';
+    }
+
+    const duplicate =
+      suppliers.some((supplier) => {
+        return (
+          supplier.name
+            ?.trim()
+            .toLowerCase() ===
+            name.toLowerCase() &&
+          supplier.id !==
+            editingSupplier?.id
+        );
+      });
+
+    if (duplicate) {
+      newErrors.name =
+        'A supplier with this name already exists.';
+    }
+
+    setErrors(newErrors);
+
+    return (
+      Object.keys(newErrors).length === 0
+    );
+  };
+
+  // ============================================================
+  // CREATE / UPDATE
+  // ============================================================
+
+  const handleSubmit = async (
+    event
+  ) => {
+    event.preventDefault();
+
+    if (!validateForm()) {
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      const payload = {
+        supplierName:
+          formData.name.trim(),
+
+        phone:
+          formData.phone.trim(),
+
+        email:
+          formData.email.trim(),
+
+        address:
+          formData.address.trim(),
+      };
+
+      if (editingSupplier) {
+        await supplierService.update(
+          editingSupplier.id,
+          payload
+        );
+
+        showNotification(
+          'success',
+          'Supplier updated successfully.'
+        );
+      } else {
+        await supplierService.create(
+          payload
+        );
+
+        showNotification(
+          'success',
+          'Supplier created successfully.'
+        );
+      }
+
+      setIsModalOpen(false);
+      setEditingSupplier(null);
+      resetForm();
+
+      await loadSuppliers();
+    } catch (err) {
+      console.error(
+        'Failed to save supplier:',
+        err
+      );
+
+      showNotification(
+        'error',
+        err?.response?.data?.message ||
+          err?.message ||
+          'Failed to save supplier.'
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // ============================================================
+  // TOGGLE
+  // ============================================================
+
+  const handleToggleStatus = (
+    supplier
+  ) => {
+    setSupplierToToggle(supplier);
+    setOpenMenuId(null);
+  };
+
+  const confirmToggleStatus =
+    async () => {
+      if (!supplierToToggle) {
+        return;
+      }
+
+      const isActive =
+        supplierToToggle.status ===
+        'active';
+
+      setIsSaving(true);
+
+      try {
+        await supplierService.update(
+          supplierToToggle.id,
+          {
+            supplierName:
+              supplierToToggle.name,
+
+            phone:
+              supplierToToggle.phone ||
+              '',
+
+            email:
+              supplierToToggle.email ||
+              '',
+
+            address:
+              supplierToToggle.address ||
+              '',
+
+            isActive:
+              !isActive,
+          }
+        );
+
+        showNotification(
+          'success',
+          `${supplierToToggle.name} has been ${
+            isActive
+              ? 'deactivated'
+              : 'activated'
+          }.`
+        );
+
+        setSupplierToToggle(null);
+
+        await loadSuppliers();
+      } catch (err) {
+        console.error(
+          'Failed to update supplier:',
+          err
+        );
+
+        showNotification(
+          'error',
+          err?.response?.data?.message ||
+            err?.message ||
+            'Failed to update supplier.'
+        );
+      } finally {
+        setIsSaving(false);
+      }
+    };
+
+  // ============================================================
+  // DELETE
+  // ============================================================
+
+  const handleDelete = (
+    supplier
+  ) => {
+    setSupplierToDelete(supplier);
+    setOpenMenuId(null);
+  };
+
+  const confirmDelete =
+    async () => {
+      if (!supplierToDelete) {
+        return;
+      }
+
+      setIsSaving(true);
+
+      try {
+        await supplierService.remove(
+          supplierToDelete.id
+        );
+
+        showNotification(
+          'success',
+          `${supplierToDelete.name} deleted successfully.`
+        );
+
+        setSupplierToDelete(null);
+
+        await loadSuppliers();
+      } catch (err) {
+        console.error(
+          'Failed to delete supplier:',
+          err
+        );
+
+        showNotification(
+          'error',
+          err?.response?.data?.message ||
+            err?.message ||
+            'Failed to delete supplier.'
+        );
+      } finally {
+        setIsSaving(false);
+      }
+    };
+
+  // ============================================================
+  // FORMAT CURRENCY
+  // ============================================================
+
+  const formatCurrency = (
+    value
+  ) => {
+    return new Intl.NumberFormat(
+      'en-US',
+      {
+        style: 'currency',
+        currency: 'ETB',
+        maximumFractionDigits: 0,
+      }
+    ).format(value || 0);
+  };
 
   // ============================================================
   // FORMAT DATE
   // ============================================================
 
-  const formatDate = (date) => {
+  const formatDate = (
+    date
+  ) => {
     if (!date) {
-      return '—';
+      return '-';
     }
 
-    const parsedDate =
+    const parsed =
       new Date(date);
 
-    if (Number.isNaN(parsedDate.getTime())) {
-      return '—';
+    if (
+      Number.isNaN(
+        parsed.getTime()
+      )
+    ) {
+      return '-';
     }
 
-    return parsedDate.toLocaleDateString(
+    return parsed.toLocaleDateString(
       'en-US',
       {
         year: 'numeric',
@@ -679,89 +750,46 @@ const Suppliers = () => {
   };
 
   // ============================================================
-  // STATUS BADGE
-  // ============================================================
-
-  const StatusBadge = ({ isActive }) => {
-    return (
-      <span
-        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${
-          isActive
-            ? 'bg-emerald-50 text-emerald-700'
-            : 'bg-slate-100 text-slate-600'
-        }`}
-      >
-        <span
-          className={`h-1.5 w-1.5 rounded-full ${
-            isActive
-              ? 'bg-emerald-500'
-              : 'bg-slate-400'
-          }`}
-        />
-
-        {isActive
-          ? 'Active'
-          : 'Inactive'}
-      </span>
-    );
-  };
-
-  // ============================================================
-  // LOADING STATE
-  // ============================================================
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-slate-50">
-        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-
-          <div className="flex min-h-[400px] items-center justify-center">
-
-            <div className="text-center">
-
-              <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-blue-600" />
-
-              <p className="mt-4 text-sm font-medium text-slate-500">
-                Loading suppliers...
-              </p>
-
-            </div>
-
-          </div>
-
-        </div>
-      </div>
-    );
-  }
-
-  // ============================================================
   // RENDER
   // ============================================================
 
   return (
     <div className="min-h-screen bg-slate-50">
 
-      {/* ========================================================
-          NOTIFICATION
-      ======================================================== */}
+      {/* NOTIFICATION */}
 
       {notification && (
         <div className="fixed right-4 top-4 z-[100] max-w-sm">
           <div
-            className={`flex items-center gap-3 rounded-xl border bg-white px-4 py-3 shadow-xl ${
-              notification.type === 'success'
-                ? 'border-emerald-200 text-emerald-700'
-                : 'border-red-200 text-red-700'
+            className={`flex items-start gap-3 rounded-xl border bg-white px-4 py-3 shadow-xl ${
+              notification.type ===
+              'success'
+                ? 'border-emerald-200'
+                : 'border-red-200'
             }`}
           >
 
-            {notification.type === 'success' ? (
-              <FiCheckCircle size={18} />
+            {notification.type ===
+            'success' ? (
+              <FiCheckCircle
+                className="mt-0.5 text-emerald-600"
+                size={18}
+              />
             ) : (
-              <FiAlertCircle size={18} />
+              <FiAlertCircle
+                className="mt-0.5 text-red-600"
+                size={18}
+              />
             )}
 
-            <span className="text-sm font-medium">
+            <span
+              className={`text-sm font-medium ${
+                notification.type ===
+                'success'
+                  ? 'text-emerald-700'
+                  : 'text-red-700'
+              }`}
+            >
               {notification.message}
             </span>
 
@@ -769,7 +797,7 @@ const Suppliers = () => {
               onClick={() =>
                 setNotification(null)
               }
-              className="ml-2 text-slate-400 hover:text-slate-700"
+              className="ml-auto"
             >
               <FiX size={16} />
             </button>
@@ -778,725 +806,494 @@ const Suppliers = () => {
         </div>
       )}
 
-      {/* ========================================================
-          PAGE CONTAINER
-      ======================================================== */}
-
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
 
-        {/* ======================================================
-            HEADER
-        ====================================================== */}
+        {/* HEADER */}
 
-        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mb-7 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 
           <div>
-
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-              Suppliers
+            <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">
+              Supplier Management
             </h1>
 
-            <p className="mt-1 text-sm text-slate-500 sm:text-base">
+            <p className="mt-1 text-sm text-slate-500">
               Manage your supplier relationships and contact information.
             </p>
-
           </div>
 
-          <button
-            onClick={handleOpenCreate}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-          >
-            <FiPlus size={18} />
-            Add Supplier
-          </button>
-
-        </div>
-
-        {/* ======================================================
-            ERROR
-        ====================================================== */}
-
-        {error && (
-          <div className="mb-6 flex items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-red-700">
-
-            <div className="flex items-center gap-2">
-
-              <FiAlertCircle size={18} />
-
-              <p className="text-sm font-medium">
-                {error}
-              </p>
-
-            </div>
+          <div className="flex gap-2">
 
             <button
-              onClick={loadSuppliers}
-              className="rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-red-700 shadow-sm hover:bg-red-100"
+              onClick={
+                loadSuppliers
+              }
+              disabled={loading}
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700"
             >
-              Retry
+              <FiRefreshCw
+                size={17}
+                className={
+                  loading
+                    ? 'animate-spin'
+                    : ''
+                }
+              />
+              Refresh
+            </button>
+
+            <button
+              onClick={
+                handleOpenCreate
+              }
+              className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-700"
+            >
+              <FiPlus size={18} />
+              Add Supplier
             </button>
 
           </div>
+
+        </div>
+
+        {/* ERROR */}
+
+        {error && (
+          <div className="mb-5 rounded-xl border border-red-200 bg-red-50 p-4 text-red-700">
+            <div className="flex items-center gap-3">
+              <FiAlertCircle />
+
+              <div className="flex-1">
+                <p className="font-semibold">
+                  Could not load suppliers
+                </p>
+
+                <p className="text-sm">
+                  {error}
+                </p>
+              </div>
+
+              <button
+                onClick={
+                  loadSuppliers
+                }
+                className="text-sm font-semibold underline"
+              >
+                Retry
+              </button>
+            </div>
+          </div>
         )}
 
-        {/* ======================================================
-            STATISTICS
-        ====================================================== */}
+        {/* STATISTICS */}
 
-        <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
 
-          {/* Total */}
+          <div className="rounded-2xl border bg-white p-5 shadow-sm">
+            <p className="text-sm text-slate-500">
+              Total Suppliers
+            </p>
 
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-
-            <div className="flex items-center justify-between">
-
-              <div>
-
-                <p className="text-sm font-medium text-slate-500">
-                  Total Suppliers
-                </p>
-
-                <p className="mt-2 text-3xl font-bold text-slate-900">
-                  {totalSuppliers}
-                </p>
-
-                <p className="mt-1 text-xs text-slate-500">
-                  Registered suppliers
-                </p>
-
-              </div>
-
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-                <FiTruck size={23} />
-              </div>
-
-            </div>
-
+            <p className="mt-2 text-3xl font-bold">
+              {totalSuppliers}
+            </p>
           </div>
 
-          {/* Active */}
+          <div className="rounded-2xl border bg-white p-5 shadow-sm">
+            <p className="text-sm text-slate-500">
+              Active Suppliers
+            </p>
 
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-
-            <div className="flex items-center justify-between">
-
-              <div>
-
-                <p className="text-sm font-medium text-slate-500">
-                  Active Suppliers
-                </p>
-
-                <p className="mt-2 text-3xl font-bold text-slate-900">
-                  {activeSuppliers}
-                </p>
-
-                <p className="mt-1 text-xs text-emerald-600">
-                  Currently active
-                </p>
-
-              </div>
-
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
-                <FiCheckCircle size={23} />
-              </div>
-
-            </div>
-
+            <p className="mt-2 text-3xl font-bold text-emerald-600">
+              {activeSuppliers}
+            </p>
           </div>
 
-          {/* Inactive */}
+          <div className="rounded-2xl border bg-white p-5 shadow-sm">
+            <p className="text-sm text-slate-500">
+              Inactive Suppliers
+            </p>
 
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <p className="mt-2 text-3xl font-bold text-amber-600">
+              {inactiveSuppliers}
+            </p>
+          </div>
 
-            <div className="flex items-center justify-between">
+          <div className="rounded-2xl border bg-white p-5 shadow-sm">
+            <p className="text-sm text-slate-500">
+              Purchase Value
+            </p>
 
-              <div>
-
-                <p className="text-sm font-medium text-slate-500">
-                  Inactive Suppliers
-                </p>
-
-                <p className="mt-2 text-3xl font-bold text-slate-900">
-                  {inactiveSuppliers}
-                </p>
-
-                <p className="mt-1 text-xs text-slate-500">
-                  Currently inactive
-                </p>
-
-              </div>
-
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-slate-500">
-                <FiPower size={23} />
-              </div>
-
-            </div>
-
+            <p className="mt-2 text-2xl font-bold">
+              {formatCurrency(
+                totalPurchaseValue
+              )}
+            </p>
           </div>
 
         </div>
 
-        {/* ======================================================
-            MAIN CARD
-        ====================================================== */}
+        {/* MAIN */}
 
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-hidden rounded-2xl border bg-white shadow-sm">
 
-          {/* Toolbar */}
+          {/* TOOLBAR */}
 
-          <div className="border-b border-slate-200 p-5">
+          <div className="flex flex-col gap-3 border-b p-4 lg:flex-row lg:items-center lg:justify-between">
 
-            <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+            <div className="relative w-full lg:w-80">
 
-              <div>
+              <FiSearch
+                size={17}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+              />
 
-                <h2 className="text-base font-bold text-slate-900">
-                  Supplier Directory
-                </h2>
-
-                <p className="mt-1 text-sm text-slate-500">
-                  View and manage your suppliers.
-                </p>
-
-              </div>
-
-              <div className="flex flex-col gap-3 sm:flex-row">
-
-                {/* Search */}
-
-                <div className="relative w-full sm:w-72">
-
-                  <FiSearch
-                    size={18}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-                  />
-
-                  <input
-                    type="text"
-                    value={searchTerm}
-                    onChange={(event) =>
-                      setSearchTerm(
-                        event.target.value
-                      )
-                    }
-                    placeholder="Search suppliers..."
-                    className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-10 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-                  />
-
-                  {searchTerm && (
-                    <button
-                      onClick={() =>
-                        setSearchTerm('')
-                      }
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
-                    >
-                      <FiX size={17} />
-                    </button>
-                  )}
-
-                </div>
-
-                {/* Status */}
-
-                <div className="relative">
-
-                  <select
-                    value={statusFilter}
-                    onChange={(event) =>
-                      setStatusFilter(
-                        event.target.value
-                      )
-                    }
-                    className="w-full appearance-none rounded-xl border border-slate-300 bg-white py-2.5 pl-3 pr-9 text-sm font-medium text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 sm:w-36"
-                  >
-
-                    <option value="all">
-                      All Status
-                    </option>
-
-                    <option value="active">
-                      Active
-                    </option>
-
-                    <option value="inactive">
-                      Inactive
-                    </option>
-
-                  </select>
-
-                  <FiChevronDown
-                    className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
-                    size={15}
-                  />
-
-                </div>
-
-                {/* Address */}
-
-                <div className="relative">
-
-                  <select
-                    value={locationFilter}
-                    onChange={(event) =>
-                      setLocationFilter(
-                        event.target.value
-                      )
-                    }
-                    className="w-full appearance-none rounded-xl border border-slate-300 bg-white py-2.5 pl-3 pr-9 text-sm font-medium text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 sm:w-48"
-                  >
-
-                    <option value="all">
-                      All Addresses
-                    </option>
-
-                    {locations.map(
-                      (location) => (
-                        <option
-                          key={location}
-                          value={location}
-                        >
-                          {location}
-                        </option>
-                      )
-                    )}
-
-                  </select>
-
-                  <FiChevronDown
-                    className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
-                    size={15}
-                  />
-
-                </div>
-
-              </div>
+              <input
+                value={searchTerm}
+                onChange={(event) =>
+                  setSearchTerm(
+                    event.target.value
+                  )
+                }
+                placeholder="Search suppliers..."
+                className="w-full rounded-xl border border-slate-300 py-2.5 pl-10 pr-4 text-sm outline-none focus:border-blue-500"
+              />
 
             </div>
 
-          </div>
+            <div className="flex flex-col gap-3 sm:flex-row">
 
-          {/* ====================================================
-              DESKTOP TABLE
-          ==================================================== */}
+              <select
+                value={statusFilter}
+                onChange={(event) =>
+                  setStatusFilter(
+                    event.target.value
+                  )
+                }
+                className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm"
+              >
+                <option value="all">
+                  All Status
+                </option>
 
-          <div className="hidden overflow-x-auto md:block">
+                <option value="active">
+                  Active
+                </option>
 
-            <table className="w-full min-w-[900px]">
+                <option value="inactive">
+                  Inactive
+                </option>
+              </select>
 
-              <thead>
+              <select
+                value={locationFilter}
+                onChange={(event) =>
+                  setLocationFilter(
+                    event.target.value
+                  )
+                }
+                className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm"
+              >
+                <option value="all">
+                  All Locations
+                </option>
 
-                <tr className="border-b border-slate-200 bg-slate-50">
-
-                  <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Supplier
-                  </th>
-
-                  <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Phone
-                  </th>
-
-                  <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Email
-                  </th>
-
-                  <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Address
-                  </th>
-
-                  <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Status
-                  </th>
-
-                  <th className="px-5 py-4 text-right text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Actions
-                  </th>
-
-                </tr>
-
-              </thead>
-
-              <tbody className="divide-y divide-slate-100">
-
-                {filteredSuppliers.map(
-                  (supplier) => (
-                    <tr
-                      key={supplier._id}
-                      className="transition hover:bg-slate-50"
+                {locations.map(
+                  (location) => (
+                    <option
+                      key={location}
+                      value={location}
                     >
-
-                      {/* Supplier */}
-
-                      <td className="px-5 py-4">
-
-                        <div className="flex items-center gap-3">
-
-                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-                            <FiBriefcaseIcon />
-                          </div>
-
-                          <div className="min-w-0">
-
-                            <p className="truncate font-semibold text-slate-900">
-                              {supplier.supplierName}
-                            </p>
-
-                            <p className="mt-0.5 text-xs text-slate-400">
-                              Added{' '}
-                              {formatDate(
-                                supplier.createdAt
-                              )}
-                            </p>
-
-                          </div>
-
-                        </div>
-
-                      </td>
-
-                      {/* Phone */}
-
-                      <td className="px-5 py-4">
-
-                        <p className="flex items-center gap-2 text-sm text-slate-700">
-
-                          <FiPhone
-                            size={14}
-                            className="text-slate-400"
-                          />
-
-                          {supplier.phone || '—'}
-
-                        </p>
-
-                      </td>
-
-                      {/* Email */}
-
-                      <td className="px-5 py-4">
-
-                        <p className="flex max-w-[220px] items-center gap-2 truncate text-sm text-slate-600">
-
-                          <FiMail
-                            size={14}
-                            className="shrink-0 text-slate-400"
-                          />
-
-                          <span className="truncate">
-                            {supplier.email ||
-                              'No email'}
-                          </span>
-
-                        </p>
-
-                      </td>
-
-                      {/* Address */}
-
-                      <td className="px-5 py-4">
-
-                        <div className="flex items-start gap-2">
-
-                          <FiMapPin
-                            size={15}
-                            className="mt-0.5 shrink-0 text-slate-400"
-                          />
-
-                          <span className="max-w-[220px] text-sm text-slate-700">
-                            {supplier.address ||
-                              'No address'}
-                          </span>
-
-                        </div>
-
-                      </td>
-
-                      {/* Status */}
-
-                      <td className="px-5 py-4">
-
-                        <StatusBadge
-                          isActive={
-                            supplier.isActive
-                          }
-                        />
-
-                      </td>
-
-                      {/* Actions */}
-
-                      <td className="relative px-5 py-4">
-
-                        <div className="flex justify-end">
-
-                          <button
-                            onClick={() =>
-                              setOpenMenuId(
-                                openMenuId ===
-                                  supplier._id
-                                  ? null
-                                  : supplier._id
-                              )
-                            }
-                            className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
-                            title="More actions"
-                          >
-                            <FiMoreVertical
-                              size={18}
-                            />
-                          </button>
-
-                          {openMenuId ===
-                            supplier._id && (
-                            <ActionMenu
-                              supplier={
-                                supplier
-                              }
-                              onView={
-                                handleViewDetails
-                              }
-                              onEdit={
-                                handleOpenEdit
-                              }
-                              onToggle={
-                                handleToggleStatus
-                              }
-                              onDelete={
-                                handleDelete
-                              }
-                            />
-                          )}
-
-                        </div>
-
-                      </td>
-
-                    </tr>
+                      {location}
+                    </option>
                   )
                 )}
 
-              </tbody>
+              </select>
 
-            </table>
-
-          </div>
-
-          {/* ====================================================
-              MOBILE CARDS
-          ==================================================== */}
-
-          <div className="divide-y divide-slate-100 md:hidden">
-
-            {filteredSuppliers.map(
-              (supplier) => (
-                <div
-                  key={supplier._id}
-                  className="p-4"
-                >
-
-                  <div className="flex items-start justify-between gap-3">
-
-                    <div className="flex min-w-0 items-center gap-3">
-
-                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-                        <FiBriefcaseIcon />
-                      </div>
-
-                      <div className="min-w-0">
-
-                        <h3 className="truncate font-semibold text-slate-900">
-                          {supplier.supplierName}
-                        </h3>
-
-                        <p className="mt-1 text-xs text-slate-500">
-                          {supplier.phone}
-                        </p>
-
-                      </div>
-
-                    </div>
-
-                    <div className="relative">
-
-                      <button
-                        onClick={() =>
-                          setOpenMenuId(
-                            openMenuId ===
-                              supplier._id
-                              ? null
-                              : supplier._id
-                          )
-                        }
-                        className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-                      >
-                        <FiMoreVertical
-                          size={18}
-                        />
-                      </button>
-
-                      {openMenuId ===
-                        supplier._id && (
-                        <ActionMenu
-                          supplier={
-                            supplier
-                          }
-                          onView={
-                            handleViewDetails
-                          }
-                          onEdit={
-                            handleOpenEdit
-                          }
-                          onToggle={
-                            handleToggleStatus
-                          }
-                          onDelete={
-                            handleDelete
-                          }
-                        />
-                      )}
-
-                    </div>
-
-                  </div>
-
-                  <div className="mt-4 grid grid-cols-1 gap-3">
-
-                    <div className="rounded-xl bg-slate-50 p-3">
-
-                      <div className="flex items-center gap-2 text-xs text-slate-500">
-                        <FiPhone size={13} />
-                        Phone
-                      </div>
-
-                      <p className="mt-1 truncate text-sm font-medium text-slate-700">
-                        {supplier.phone ||
-                          '—'}
-                      </p>
-
-                    </div>
-
-                    <div className="rounded-xl bg-slate-50 p-3">
-
-                      <div className="flex items-center gap-2 text-xs text-slate-500">
-                        <FiMail size={13} />
-                        Email
-                      </div>
-
-                      <p className="mt-1 truncate text-sm font-medium text-slate-700">
-                        {supplier.email ||
-                          'No email'}
-                      </p>
-
-                    </div>
-
-                    <div className="rounded-xl bg-slate-50 p-3">
-
-                      <div className="flex items-center gap-2 text-xs text-slate-500">
-                        <FiMapPin size={13} />
-                        Address
-                      </div>
-
-                      <p className="mt-1 text-sm font-medium text-slate-700">
-                        {supplier.address ||
-                          'No address'}
-                      </p>
-
-                    </div>
-
-                  </div>
-
-                  <div className="mt-4 flex items-center justify-between">
-
-                    <StatusBadge
-                      isActive={
-                        supplier.isActive
-                      }
-                    />
-
-                    <span className="text-xs text-slate-400">
-                      Added{' '}
-                      {formatDate(
-                        supplier.createdAt
-                      )}
-                    </span>
-
-                  </div>
-
-                </div>
-              )
-            )}
+            </div>
 
           </div>
 
-          {/* ====================================================
-              EMPTY STATE
-          ==================================================== */}
+          {/* CONTENT */}
 
-          {filteredSuppliers.length === 0 && (
-            <div className="px-6 py-16 text-center">
+          {loading ? (
+            <div className="flex min-h-[300px] items-center justify-center">
+              <div className="text-center">
+                <FiRefreshCw
+                  size={28}
+                  className="mx-auto animate-spin text-blue-600"
+                />
 
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-slate-100 text-slate-400">
-                <FiTruck size={25} />
+                <p className="mt-3 text-sm text-slate-500">
+                  Loading suppliers...
+                </p>
               </div>
+            </div>
+          ) : filteredSuppliers.length ===
+            0 ? (
 
-              <h3 className="mt-4 text-base font-semibold text-slate-900">
-                No suppliers found
+            <div className="flex min-h-[300px] flex-col items-center justify-center text-center">
+
+              <FiTruck
+                size={42}
+                className="text-slate-300"
+              />
+
+              <h3 className="mt-4 text-lg font-semibold">
+                {suppliers.length === 0
+                  ? 'No suppliers found'
+                  : 'No matching suppliers'}
               </h3>
 
-              <p className="mx-auto mt-1 max-w-sm text-sm text-slate-500">
-                {searchTerm ||
-                statusFilter !== 'all' ||
-                locationFilter !== 'all'
-                  ? 'Try changing your search or filters.'
-                  : 'Add your first supplier to start managing suppliers.'}
+              <p className="mt-1 text-sm text-slate-500">
+                {suppliers.length === 0
+                  ? 'Create your first supplier to make it available in the Product form.'
+                  : 'Try changing your search or filters.'}
               </p>
 
-              {!searchTerm &&
-                statusFilter === 'all' &&
-                locationFilter === 'all' && (
-                  <button
-                    onClick={
-                      handleOpenCreate
-                    }
-                    className="mt-5 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
-                  >
-                    <FiPlus size={17} />
-                    Add Supplier
-                  </button>
-                )}
+              {suppliers.length ===
+                0 && (
+                <button
+                  onClick={
+                    handleOpenCreate
+                  }
+                  className="mt-5 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white"
+                >
+                  <FiPlus />
+                  Add Supplier
+                </button>
+              )}
 
             </div>
-          )}
 
-          {/* ====================================================
-              FOOTER
-          ==================================================== */}
+          ) : (
 
-          {filteredSuppliers.length > 0 && (
-            <div className="border-t border-slate-200 bg-slate-50 px-5 py-4">
+            <div className="overflow-x-auto">
 
-              <p className="text-sm text-slate-500">
+              <table className="w-full min-w-[900px]">
 
-                Showing{' '}
+                <thead>
+                  <tr className="border-b bg-slate-50">
 
-                <span className="font-semibold text-slate-700">
-                  {filteredSuppliers.length}
-                </span>{' '}
+                    <th className="px-5 py-4 text-left text-xs font-semibold uppercase text-slate-500">
+                      Supplier
+                    </th>
 
-                of{' '}
+                    <th className="px-5 py-4 text-left text-xs font-semibold uppercase text-slate-500">
+                      Contact
+                    </th>
 
-                <span className="font-semibold text-slate-700">
-                  {suppliers.length}
-                </span>{' '}
+                    <th className="px-5 py-4 text-left text-xs font-semibold uppercase text-slate-500">
+                      Location
+                    </th>
 
-                suppliers
+                    <th className="px-5 py-4 text-left text-xs font-semibold uppercase text-slate-500">
+                      Products
+                    </th>
 
-              </p>
+                    <th className="px-5 py-4 text-left text-xs font-semibold uppercase text-slate-500">
+                      Status
+                    </th>
+
+                    <th className="px-5 py-4 text-right text-xs font-semibold uppercase text-slate-500">
+                      Actions
+                    </th>
+
+                  </tr>
+                </thead>
+
+                <tbody className="divide-y">
+
+                  {filteredSuppliers.map(
+                    (supplier) => (
+
+                      <tr
+                        key={supplier.id}
+                        className="hover:bg-slate-50"
+                      >
+
+                        <td className="px-5 py-4">
+
+                          <div className="flex items-center gap-3">
+
+                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                              <FiTruck />
+                            </div>
+
+                            <div>
+                              <p className="font-semibold">
+                                {supplier.name}
+                              </p>
+
+                              {supplier.contactPerson && (
+                                <p className="text-xs text-slate-500">
+                                  {supplier.contactPerson}
+                                </p>
+                              )}
+                            </div>
+
+                          </div>
+
+                        </td>
+
+                        <td className="px-5 py-4">
+
+                          <p className="flex items-center gap-2 text-sm">
+                            <FiPhone size={13} />
+                            {supplier.phone ||
+                              '-'}
+                          </p>
+
+                          <p className="mt-1 flex items-center gap-2 text-xs text-slate-500">
+                            <FiMail size={13} />
+                            {supplier.email ||
+                              'No email'}
+                          </p>
+
+                        </td>
+
+                        <td className="px-5 py-4">
+
+                          <p className="flex items-center gap-2 text-sm">
+                            <FiMapPin size={14} />
+
+                            {supplier.city ||
+                              supplier.address ||
+                              '-'}
+                          </p>
+
+                        </td>
+
+                        <td className="px-5 py-4">
+
+                          <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-sm font-semibold">
+                            {supplier.productsSupplied}
+                          </span>
+
+                        </td>
+
+                        <td className="px-5 py-4">
+
+                          {supplier.status ===
+                          'active' ? (
+                            <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                              Active
+                            </span>
+                          ) : (
+                            <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
+                              Inactive
+                            </span>
+                          )}
+
+                        </td>
+
+                        <td className="px-5 py-4 text-right">
+
+                          <div
+                            className="relative inline-block"
+                            ref={
+                              openMenuId ===
+                              supplier.id
+                                ? menuRef
+                                : null
+                            }
+                          >
+
+                            <button
+                              onClick={() =>
+                                setOpenMenuId(
+                                  openMenuId ===
+                                    supplier.id
+                                    ? null
+                                    : supplier.id
+                                )
+                              }
+                              className="flex h-9 w-9 items-center justify-center rounded-lg hover:bg-slate-100"
+                            >
+                              <FiMoreVertical />
+                            </button>
+
+                            {openMenuId ===
+                              supplier.id && (
+                              <div className="absolute right-0 top-10 z-30 w-48 rounded-xl border bg-white py-1 text-left shadow-xl">
+
+                                <button
+                                  onClick={() =>
+                                    handleView(
+                                      supplier
+                                    )
+                                  }
+                                  className="flex w-full items-center gap-3 px-4 py-2.5 text-sm hover:bg-slate-50"
+                                >
+                                  <FiEye />
+                                  View Details
+                                </button>
+
+                                <button
+                                  onClick={() =>
+                                    handleOpenEdit(
+                                      supplier
+                                    )
+                                  }
+                                  className="flex w-full items-center gap-3 px-4 py-2.5 text-sm hover:bg-slate-50"
+                                >
+                                  <FiEdit2 />
+                                  Edit Supplier
+                                </button>
+
+                                <button
+                                  onClick={() =>
+                                    handleToggleStatus(
+                                      supplier
+                                    )
+                                  }
+                                  className="flex w-full items-center gap-3 px-4 py-2.5 text-sm hover:bg-slate-50"
+                                >
+                                  <FiPower />
+
+                                  {supplier.status ===
+                                  'active'
+                                    ? 'Deactivate'
+                                    : 'Activate'}
+                                </button>
+
+                                <div className="my-1 border-t" />
+
+                                <button
+                                  onClick={() =>
+                                    handleDelete(
+                                      supplier
+                                    )
+                                  }
+                                  className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50"
+                                >
+                                  <FiTrash2 />
+                                  Delete Supplier
+                                </button>
+
+                              </div>
+                            )}
+
+                          </div>
+
+                        </td>
+
+                      </tr>
+
+                    )
+                  )}
+
+                </tbody>
+
+              </table>
 
             </div>
+
           )}
 
         </div>
+
       </div>
 
       {/* ========================================================
@@ -1504,223 +1301,278 @@ const Suppliers = () => {
       ======================================================== */}
 
       {isModalOpen && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center overflow-y-auto bg-slate-900/50 px-4 py-6 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
 
-          <div className="w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+          <div className="w-full max-w-2xl rounded-2xl bg-white shadow-2xl">
 
-            {/* Header */}
-
-            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
+            <div className="flex items-center justify-between border-b p-5">
 
               <div>
+                <h2 className="text-lg font-bold">
+                  {editingSupplier
+                    ? 'Edit Supplier'
+                    : 'Add Supplier'}
+                </h2>
 
-                <div className="flex items-center gap-2">
-
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
-                    <FiTruck size={18} />
-                  </div>
-
-                  <h2 className="text-lg font-bold text-slate-900">
-                    {editingSupplier
-                      ? 'Edit Supplier'
-                      : 'Add Supplier'}
-                  </h2>
-
-                </div>
-
-                <p className="mt-2 text-sm text-slate-500">
+                <p className="mt-1 text-sm text-slate-500">
                   {editingSupplier
                     ? 'Update supplier information.'
-                    : 'Add a supplier to your SpareFlow supplier directory.'}
+                    : 'Create a new supplier.'}
                 </p>
-
               </div>
 
               <button
-                onClick={
-                  handleCloseModal
+                onClick={() =>
+                  !isSaving &&
+                  setIsModalOpen(false)
                 }
-                disabled={isSaving}
-                className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50"
+                className="rounded-lg p-2 hover:bg-slate-100"
               >
                 <FiX size={20} />
               </button>
 
             </div>
 
-            {/* Form */}
-
             <form
               onSubmit={handleSubmit}
-              className="p-6"
+              className="space-y-5 p-5"
             >
 
               <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
 
-                {/* Supplier Name */}
+                {/* NAME */}
 
-                <FormField
-                  label="Supplier / Company Name"
-                  required
-                  error={
-                    errors.supplierName
-                  }
-                  className="sm:col-span-2"
-                >
+                <div>
+                  <label className="mb-1.5 block text-sm font-semibold">
+                    Supplier Name *
+                  </label>
+
                   <input
-                    name="supplierName"
-                    value={
-                      formData.supplierName
+                    value={formData.name}
+                    onChange={(event) =>
+                      setFormData({
+                        ...formData,
+                        name:
+                          event.target
+                            .value,
+                      })
                     }
-                    onChange={
-                      handleChange
-                    }
-                    placeholder="e.g. Auto Parts Ethiopia"
-                    maxLength={100}
-                    className={inputClass(
-                      errors.supplierName
-                    )}
+                    placeholder="Supplier name"
+                    className={`w-full rounded-xl border px-4 py-3 outline-none ${
+                      errors.name
+                        ? 'border-red-400'
+                        : 'border-slate-300'
+                    }`}
                   />
-                </FormField>
 
-                {/* Phone */}
+                  {errors.name && (
+                    <p className="mt-1 text-xs text-red-600">
+                      {errors.name}
+                    </p>
+                  )}
+                </div>
 
-                <FormField
-                  label="Phone Number"
-                  required
-                  error={errors.phone}
-                >
-                  <div className="relative">
+                {/* CONTACT */}
 
-                    <FiPhone
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-                      size={16}
-                    />
+                <div>
+                  <label className="mb-1.5 block text-sm font-semibold">
+                    Contact Person
+                  </label>
 
-                    <input
-                      name="phone"
-                      value={
-                        formData.phone
-                      }
-                      onChange={
-                        handleChange
-                      }
-                      placeholder="+251 9XX XXX XXX"
-                      maxLength={30}
-                      className={`${inputClass(
-                        errors.phone
-                      )} pl-10`}
-                    />
-
-                  </div>
-                </FormField>
-
-                {/* Email */}
-
-                <FormField
-                  label="Email Address"
-                  error={errors.email}
-                >
-                  <div className="relative">
-
-                    <FiMail
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-                      size={16}
-                    />
-
-                    <input
-                      type="email"
-                      name="email"
-                      value={
-                        formData.email
-                      }
-                      onChange={
-                        handleChange
-                      }
-                      placeholder="supplier@example.com"
-                      maxLength={150}
-                      className={`${inputClass(
-                        errors.email
-                      )} pl-10`}
-                    />
-
-                  </div>
-                </FormField>
-
-                {/* Address */}
-
-                <FormField
-                  label="Address"
-                  error={errors.address}
-                  className="sm:col-span-2"
-                >
-                  <div className="relative">
-
-                    <FiMapPin
-                      className="absolute left-3 top-3 text-slate-400"
-                      size={16}
-                    />
-
-                    <textarea
-                      name="address"
-                      value={
-                        formData.address
-                      }
-                      onChange={
-                        handleChange
-                      }
-                      placeholder="Street, area, building..."
-                      maxLength={200}
-                      rows={3}
-                      className={`${inputClass(
-                        errors.address
-                      )} resize-none pl-10`}
-                    />
-
-                  </div>
-                </FormField>
-
-                {/* Status */}
-
-                <FormField
-                  label="Supplier Status"
-                >
-                  <select
+                  <input
                     value={
-                      formData.isActive
-                        ? 'active'
-                        : 'inactive'
+                      formData.contactPerson
                     }
-                    onChange={
-                      handleStatusChange
+                    onChange={(event) =>
+                      setFormData({
+                        ...formData,
+                        contactPerson:
+                          event.target
+                            .value,
+                      })
                     }
-                    className={inputClass()}
-                  >
+                    placeholder="Contact person"
+                    className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none"
+                  />
+                </div>
 
-                    <option value="active">
-                      Active
-                    </option>
+                {/* PHONE */}
 
-                    <option value="inactive">
-                      Inactive
-                    </option>
+                <div>
+                  <label className="mb-1.5 block text-sm font-semibold">
+                    Phone *
+                  </label>
 
-                  </select>
-                </FormField>
+                  <input
+                    value={
+                      formData.phone
+                    }
+                    onChange={(event) =>
+                      setFormData({
+                        ...formData,
+                        phone:
+                          event.target
+                            .value,
+                      })
+                    }
+                    placeholder="+251..."
+                    className={`w-full rounded-xl border px-4 py-3 outline-none ${
+                      errors.phone
+                        ? 'border-red-400'
+                        : 'border-slate-300'
+                    }`}
+                  />
+
+                  {errors.phone && (
+                    <p className="mt-1 text-xs text-red-600">
+                      {errors.phone}
+                    </p>
+                  )}
+                </div>
+
+                {/* EMAIL */}
+
+                <div>
+                  <label className="mb-1.5 block text-sm font-semibold">
+                    Email
+                  </label>
+
+                  <input
+                    type="email"
+                    value={
+                      formData.email
+                    }
+                    onChange={(event) =>
+                      setFormData({
+                        ...formData,
+                        email:
+                          event.target
+                            .value,
+                      })
+                    }
+                    placeholder="supplier@example.com"
+                    className={`w-full rounded-xl border px-4 py-3 outline-none ${
+                      errors.email
+                        ? 'border-red-400'
+                        : 'border-slate-300'
+                    }`}
+                  />
+
+                  {errors.email && (
+                    <p className="mt-1 text-xs text-red-600">
+                      {errors.email}
+                    </p>
+                  )}
+                </div>
+
+                {/* CITY */}
+
+                <div>
+                  <label className="mb-1.5 block text-sm font-semibold">
+                    City
+                  </label>
+
+                  <input
+                    value={
+                      formData.city
+                    }
+                    onChange={(event) =>
+                      setFormData({
+                        ...formData,
+                        city:
+                          event.target
+                            .value,
+                      })
+                    }
+                    placeholder="Bahir Dar"
+                    className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none"
+                  />
+                </div>
+
+                {/* COUNTRY */}
+
+                <div>
+                  <label className="mb-1.5 block text-sm font-semibold">
+                    Country
+                  </label>
+
+                  <input
+                    value={
+                      formData.country
+                    }
+                    onChange={(event) =>
+                      setFormData({
+                        ...formData,
+                        country:
+                          event.target
+                            .value,
+                      })
+                    }
+                    className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none"
+                  />
+                </div>
 
               </div>
 
-              {/* Actions */}
+              {/* ADDRESS */}
 
-              <div className="mt-6 flex flex-col-reverse gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:justify-end">
+              <div>
+                <label className="mb-1.5 block text-sm font-semibold">
+                  Address
+                </label>
+
+                <textarea
+                  rows={3}
+                  value={
+                    formData.address
+                  }
+                  onChange={(event) =>
+                    setFormData({
+                      ...formData,
+                      address:
+                        event.target
+                          .value,
+                    })
+                  }
+                  placeholder="Supplier address"
+                  className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none"
+                />
+              </div>
+
+              {/* NOTES */}
+
+              <div>
+                <label className="mb-1.5 block text-sm font-semibold">
+                  Notes
+                </label>
+
+                <textarea
+                  rows={3}
+                  value={
+                    formData.notes
+                  }
+                  onChange={(event) =>
+                    setFormData({
+                      ...formData,
+                      notes:
+                        event.target
+                          .value,
+                    })
+                  }
+                  placeholder="Additional notes"
+                  className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 border-t pt-5">
 
                 <button
                   type="button"
-                  onClick={
-                    handleCloseModal
-                  }
                   disabled={isSaving}
-                  className="rounded-xl border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
+                  onClick={() =>
+                    setIsModalOpen(false)
+                  }
+                  className="rounded-xl border border-slate-300 px-5 py-2.5 text-sm font-semibold"
                 >
                   Cancel
                 </button>
@@ -1728,17 +1580,18 @@ const Suppliers = () => {
                 <button
                   type="submit"
                   disabled={isSaving}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
                 >
-
                   {isSaving && (
-                    <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                    <FiRefreshCw
+                      size={16}
+                      className="animate-spin"
+                    />
                   )}
 
                   {editingSupplier
                     ? 'Update Supplier'
-                    : 'Add Supplier'}
-
+                    : 'Create Supplier'}
                 </button>
 
               </div>
@@ -1751,303 +1604,89 @@ const Suppliers = () => {
       )}
 
       {/* ========================================================
-          VIEW SUPPLIER DETAILS
+          VIEW
       ======================================================== */}
 
       {viewingSupplier && (
-        <div className="fixed inset-0 z-[90] flex items-center justify-center overflow-y-auto bg-slate-900/50 px-4 py-6 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
 
-          <div className="w-full max-w-3xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+          <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl">
 
-            {/* Header */}
+            <div className="flex items-center justify-between border-b p-5">
 
-            <div className="border-b border-slate-200 bg-white px-6 py-5">
+              <h2 className="text-lg font-bold">
+                Supplier Details
+              </h2>
 
-              <div className="flex items-start justify-between gap-4">
-
-                <div className="flex items-center gap-4">
-
-                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
-                    <FiTruck size={25} />
-                  </div>
-
-                  <div>
-
-                    <div className="flex flex-wrap items-center gap-2">
-
-                      <h2 className="text-xl font-bold text-slate-900">
-                        {
-                          viewingSupplier.supplierName
-                        }
-                      </h2>
-
-                      <StatusBadge
-                        isActive={
-                          viewingSupplier.isActive
-                        }
-                      />
-
-                    </div>
-
-                    <p className="mt-1 text-sm text-slate-500">
-                      Supplier information
-                    </p>
-
-                  </div>
-
-                </div>
-
-                <button
-                  onClick={() => {
-                    setViewingSupplier(
-                      null
-                    );
-                    setSupplierPurchases(
-                      []
-                    );
-                  }}
-                  className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-                >
-                  <FiX size={20} />
-                </button>
-
-              </div>
+              <button
+                onClick={() =>
+                  setViewingSupplier(null)
+                }
+                className="rounded-lg p-2 hover:bg-slate-100"
+              >
+                <FiX />
+              </button>
 
             </div>
 
-            {/* Details */}
+            <div className="space-y-5 p-5">
 
-            <div className="p-6">
-
-              {/* Overview */}
-
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-
-                <DetailStat
-                  icon={<FiPhone />}
-                  label="Phone"
-                  value={
-                    viewingSupplier.phone ||
-                    '—'
-                  }
-                />
-
-                <DetailStat
-                  icon={<FiMail />}
-                  label="Email"
-                  value={
-                    viewingSupplier.email ||
-                    'No email'
-                  }
-                />
-
-                <DetailStat
-                  icon={<FiCalendar />}
-                  label="Created"
-                  value={formatDate(
-                    viewingSupplier.createdAt
-                  )}
-                />
-
-              </div>
-
-              {/* Information */}
-
-              <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2">
-
-                <div className="rounded-2xl border border-slate-200 p-5">
-
-                  <h3 className="font-semibold text-slate-900">
-                    Contact Information
-                  </h3>
-
-                  <div className="mt-4 space-y-4">
-
-                    <InfoRow
-                      icon={<FiTruck />}
-                      label="Supplier"
-                      value={
-                        viewingSupplier.supplierName
-                      }
-                    />
-
-                    <InfoRow
-                      icon={<FiPhone />}
-                      label="Phone"
-                      value={
-                        viewingSupplier.phone ||
-                        'No phone'
-                      }
-                    />
-
-                    <InfoRow
-                      icon={<FiMail />}
-                      label="Email"
-                      value={
-                        viewingSupplier.email ||
-                        'No email provided'
-                      }
-                    />
-
-                  </div>
-
-                </div>
-
-                <div className="rounded-2xl border border-slate-200 p-5">
-
-                  <h3 className="font-semibold text-slate-900">
-                    Address
-                  </h3>
-
-                  <div className="mt-4 space-y-4">
-
-                    <InfoRow
-                      icon={<FiMapPin />}
-                      label="Address"
-                      value={
-                        viewingSupplier.address ||
-                        'No address provided'
-                      }
-                    />
-
-                    <InfoRow
-                      icon={<FiCheckCircle />}
-                      label="Status"
-                      value={
-                        viewingSupplier.isActive
-                          ? 'Active'
-                          : 'Inactive'
-                      }
-                    />
-
-                    <InfoRow
-                      icon={<FiCalendar />}
-                      label="Created"
-                      value={formatDate(
-                        viewingSupplier.createdAt
-                      )}
-                    />
-
-                  </div>
-
-                </div>
-
-              </div>
-
-              {/* Purchase History */}
-
-              <div className="mt-6 rounded-2xl border border-slate-200 p-5">
-
-                <div className="flex items-center justify-between">
-
-                  <div>
-
-                    <h3 className="font-semibold text-slate-900">
-                      Purchase History
-                    </h3>
-
-                    <p className="mt-1 text-xs text-slate-500">
-                      Purchases recorded for this supplier.
-                    </p>
-
-                  </div>
-
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
-                    <FiShoppingBag
-                      size={17}
-                    />
-                  </div>
-
-                </div>
-
-                {isLoadingPurchases ? (
-                  <div className="flex justify-center py-8">
-
-                    <div className="h-7 w-7 animate-spin rounded-full border-4 border-slate-200 border-t-blue-600" />
-
-                  </div>
-                ) : supplierPurchases.length === 0 ? (
-                  <div className="py-8 text-center">
-
-                    <FiShoppingBag
-                      size={24}
-                      className="mx-auto text-slate-300"
-                    />
-
-                    <p className="mt-2 text-sm text-slate-500">
-                      No purchase history found.
-                    </p>
-
-                  </div>
-                ) : (
-                  <div className="mt-4 space-y-3">
-
-                    {supplierPurchases.map(
-                      (purchase) => (
-                        <PurchaseRow
-                          key={
-                            purchase._id
-                          }
-                          purchase={
-                            purchase
-                          }
-                        />
-                      )
-                    )}
-
-                  </div>
-                )}
-
-              </div>
-
-              {/* Footer */}
-
-              <div className="mt-6 flex flex-col-reverse gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:justify-between">
-
-                <p className="text-xs text-slate-400">
-                  Created{' '}
-                  {formatDate(
-                    viewingSupplier.createdAt
-                  )}
+              <div>
+                <p className="text-xs uppercase text-slate-400">
+                  Supplier
                 </p>
 
-                <div className="flex gap-3">
+                <p className="mt-1 text-lg font-bold">
+                  {viewingSupplier.name}
+                </p>
+              </div>
 
-                  <button
-                    onClick={() => {
-                      setViewingSupplier(
-                        null
-                      );
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 
-                      setSupplierPurchases(
-                        []
-                      );
+                <div>
+                  <p className="text-xs text-slate-400">
+                    Phone
+                  </p>
 
-                      handleOpenEdit(
-                        viewingSupplier
-                      );
-                    }}
-                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-                  >
-                    <FiEdit2 size={15} />
-                    Edit Supplier
-                  </button>
+                  <p className="mt-1 text-sm">
+                    {viewingSupplier.phone ||
+                      '-'}
+                  </p>
+                </div>
 
-                  <button
-                    onClick={() => {
-                      setViewingSupplier(
-                        null
-                      );
+                <div>
+                  <p className="text-xs text-slate-400">
+                    Email
+                  </p>
 
-                      setSupplierPurchases(
-                        []
-                      );
-                    }}
-                    className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
-                  >
-                    Close
-                  </button>
+                  <p className="mt-1 text-sm">
+                    {viewingSupplier.email ||
+                      '-'}
+                  </p>
+                </div>
 
+                <div>
+                  <p className="text-xs text-slate-400">
+                    Address
+                  </p>
+
+                  <p className="mt-1 text-sm">
+                    {viewingSupplier.address ||
+                      '-'}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-xs text-slate-400">
+                    Status
+                  </p>
+
+                  <p className="mt-1 text-sm font-semibold">
+                    {viewingSupplier.status ===
+                    'active'
+                      ? 'Active'
+                      : 'Inactive'}
+                  </p>
                 </div>
 
               </div>
@@ -2060,65 +1699,53 @@ const Suppliers = () => {
       )}
 
       {/* ========================================================
-          DELETE CONFIRMATION
+          DELETE
       ======================================================== */}
 
       {supplierToDelete && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 px-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 p-4">
 
           <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
 
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-red-600">
-              <FiAlertCircle size={24} />
-            </div>
+            <FiTrash2
+              size={24}
+              className="text-red-600"
+            />
 
-            <h2 className="mt-4 text-lg font-bold text-slate-900">
+            <h2 className="mt-4 text-lg font-bold">
               Delete Supplier?
             </h2>
 
-            <p className="mt-2 text-sm leading-6 text-slate-500">
-
-              Are you sure you want to delete{' '}
-
-              <span className="font-semibold text-slate-700">
-                {
-                  supplierToDelete.supplierName
-                }
-              </span>
+            <p className="mt-2 text-sm text-slate-500">
+              Are you sure you want to delete
+              <strong className="mx-1">
+                {supplierToDelete.name}
+              </strong>
               ?
-
             </p>
 
-            <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3">
-
-              <p className="text-sm leading-5 text-amber-800">
-
-                The backend will prevent deletion if this
-                supplier has products or purchase records.
-
-              </p>
-
-            </div>
-
-            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+            <div className="mt-6 flex justify-end gap-3">
 
               <button
+                disabled={isSaving}
                 onClick={() =>
                   setSupplierToDelete(
                     null
                   )
                 }
-                className="rounded-xl border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold"
               >
                 Cancel
               </button>
 
               <button
+                disabled={isSaving}
                 onClick={confirmDelete}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-red-700"
+                className="rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white"
               >
-                <FiTrash2 size={16} />
-                Delete Supplier
+                {isSaving
+                  ? 'Deleting...'
+                  : 'Delete'}
               </button>
 
             </div>
@@ -2128,289 +1755,63 @@ const Suppliers = () => {
         </div>
       )}
 
-    </div>
-  );
-};
+      {/* ========================================================
+          TOGGLE
+      ======================================================== */}
 
-// ============================================================
-// ACTION MENU
-// ============================================================
+      {supplierToToggle && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 p-4">
 
-const ActionMenu = ({
-  supplier,
-  onView,
-  onEdit,
-  onToggle,
-  onDelete,
-}) => {
-  return (
-    <div className="absolute right-0 top-11 z-[70] w-48 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-xl">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
 
-      <button
-        onClick={() =>
-          onView(supplier)
-        }
-        className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50"
-      >
-        <FiEye size={16} />
-        View Details
-      </button>
+            <FiPower
+              size={24}
+              className="text-blue-600"
+            />
 
-      <button
-        onClick={() =>
-          onEdit(supplier)
-        }
-        className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50"
-      >
-        <FiEdit2 size={16} />
-        Edit Supplier
-      </button>
+            <h2 className="mt-4 text-lg font-bold">
+              {supplierToToggle.status ===
+              'active'
+                ? 'Deactivate Supplier?'
+                : 'Activate Supplier?'}
+            </h2>
 
-      <button
-        onClick={() =>
-          onToggle(supplier)
-        }
-        className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50"
-      >
-        <FiPower size={16} />
-
-        {supplier.isActive
-          ? 'Deactivate'
-          : 'Activate'}
-      </button>
-
-      <div className="my-1 border-t border-slate-100" />
-
-      <button
-        onClick={() =>
-          onDelete(supplier)
-        }
-        className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50"
-      >
-        <FiTrash2 size={16} />
-        Delete Supplier
-      </button>
-
-    </div>
-  );
-};
-
-// ============================================================
-// FORM FIELD
-// ============================================================
-
-const FormField = ({
-  label,
-  required,
-  error,
-  children,
-  className = '',
-}) => {
-  return (
-    <div className={className}>
-
-      <label className="mb-2 block text-sm font-semibold text-slate-700">
-
-        {label}
-
-        {required && (
-          <span className="ml-1 text-red-500">
-            *
-          </span>
-        )}
-
-      </label>
-
-      {children}
-
-      {error && (
-        <div className="mt-1.5 flex items-center gap-1.5 text-xs text-red-600">
-          <FiAlertCircle size={13} />
-          {error}
-        </div>
-      )}
-
-    </div>
-  );
-};
-
-// ============================================================
-// INPUT CLASS
-// ============================================================
-
-const inputClass = (
-  hasError = false
-) => {
-  return `w-full rounded-xl border px-4 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 ${
-    hasError
-      ? 'border-red-400 focus:border-red-500 focus:ring-2 focus:ring-red-500/20'
-      : 'border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
-  }`;
-};
-
-// ============================================================
-// DETAIL STAT
-// ============================================================
-
-const DetailStat = ({
-  icon,
-  label,
-  value,
-}) => {
-  return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-
-      <div className="flex items-center gap-2 text-slate-400">
-
-        {React.cloneElement(icon, {
-          size: 15,
-        })}
-
-        <span className="text-xs font-medium">
-          {label}
-        </span>
-
-      </div>
-
-      <p className="mt-2 truncate text-sm font-bold text-slate-900">
-        {value}
-      </p>
-
-    </div>
-  );
-};
-
-// ============================================================
-// INFO ROW
-// ============================================================
-
-const InfoRow = ({
-  icon,
-  label,
-  value,
-}) => {
-  return (
-    <div className="flex items-start gap-3">
-
-      <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
-
-        {React.cloneElement(icon, {
-          size: 15,
-        })}
-
-      </div>
-
-      <div className="min-w-0">
-
-        <p className="text-xs text-slate-400">
-          {label}
-        </p>
-
-        <p className="mt-0.5 break-words text-sm font-medium text-slate-700">
-          {value}
-        </p>
-
-      </div>
-
-    </div>
-  );
-};
-
-// ============================================================
-// PURCHASE ROW
-// ============================================================
-
-const PurchaseRow = ({
-  purchase,
-}) => {
-  const items =
-    purchase.items || [];
-
-  return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-
-        <div>
-
-          <p className="text-sm font-semibold text-slate-900">
-            Purchase
-          </p>
-
-          <p className="mt-1 text-xs text-slate-500">
-            {purchase.createdAt
-              ? new Date(
-                  purchase.createdAt
-                ).toLocaleDateString(
-                  'en-US',
-                  {
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric',
-                  }
-                )
-              : 'No date'}
-          </p>
-
-        </div>
-
-        <div className="text-left sm:text-right">
-
-          <p className="text-sm font-semibold text-slate-800">
-            {items.length}{' '}
-            {items.length === 1
-              ? 'item'
-              : 'items'}
-          </p>
-
-          {purchase.totalAmount !==
-            undefined && (
-            <p className="mt-1 text-xs text-slate-500">
-              Total:{' '}
-              {Number(
-                purchase.totalAmount
-              ).toLocaleString(
-                'en-US'
-              )}{' '}
-              ETB
+            <p className="mt-2 text-sm text-slate-500">
+              {supplierToToggle.status ===
+              'active'
+                ? 'This supplier will no longer be available for new products.'
+                : 'This supplier will become available again.'}
             </p>
-          )}
 
-        </div>
+            <div className="mt-6 flex justify-end gap-3">
 
-      </div>
-
-      {items.length > 0 && (
-        <div className="mt-3 space-y-2 border-t border-slate-200 pt-3">
-
-          {items.map(
-            (item, index) => (
-              <div
-                key={
-                  item._id ||
-                  item.productId?._id ||
-                  index
+              <button
+                disabled={isSaving}
+                onClick={() =>
+                  setSupplierToToggle(
+                    null
+                  )
                 }
-                className="flex items-center justify-between gap-3 text-xs"
+                className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold"
               >
+                Cancel
+              </button>
 
-                <span className="min-w-0 truncate text-slate-600">
+              <button
+                disabled={isSaving}
+                onClick={
+                  confirmToggleStatus
+                }
+                className="rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white"
+              >
+                {isSaving
+                  ? 'Saving...'
+                  : 'Confirm'}
+              </button>
 
-                  {item.productId
-                    ?.productName ||
-                    'Product'}
+            </div>
 
-                </span>
-
-                <span className="shrink-0 font-medium text-slate-700">
-                  Qty:{' '}
-                  {item.quantity ??
-                    0}
-                </span>
-
-              </div>
-            )
-          )}
+          </div>
 
         </div>
       )}
