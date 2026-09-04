@@ -15,19 +15,22 @@ const createSecurityMiddleware = (config) => {
     }));
   }
 
-  if (config.enableRateLimit) {
-    middleware.push(rateLimit({
-      windowMs: 15 * 60 * 1000,
-      max: 100,
+ if (config.enableRateLimit) {
+  middleware.push(
+    rateLimit({
+      windowMs: config.rateLimitWindowMs,
+      max: config.rateLimitMax,
+
       standardHeaders: true,
       legacyHeaders: false,
+
       message: {
         success: false,
-        message: 'Too many requests from this IP, please try again later.'
-      }
-    }));
-  }
-
+        message: 'Too many requests from this IP, please try again later.',
+      },
+    })
+  );
+}
   return middleware;
 };
 
