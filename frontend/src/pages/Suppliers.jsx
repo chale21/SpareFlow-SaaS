@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   FiPlus,
   FiSearch,
@@ -10,133 +10,28 @@ import {
   FiPhone,
   FiMail,
   FiMapPin,
-  FiBriefcase,
   FiCheckCircle,
   FiAlertCircle,
   FiEye,
   FiPower,
   FiShoppingBag,
-  FiDollarSign,
-  FiCalendar,
-  FiUser,
   FiChevronDown,
+  FiCalendar,
 } from 'react-icons/fi';
+
+import supplierService from '../services/supplierService';
 
 const Suppliers = () => {
   // ============================================================
-  // TEMPORARY DATA
-  // Replace with supplierService.getSuppliers()
-  // when the backend Supplier API is ready.
-  // ============================================================
-
-  const [suppliers, setSuppliers] = useState([
-    {
-      id: '1',
-      name: 'Auto Parts Ethiopia',
-      contactPerson: 'Abebe Kebede',
-      phone: '+251 912 345 678',
-      email: 'info@autoparts.et',
-      address: 'Bole, Addis Ababa',
-      city: 'Addis Ababa',
-      country: 'Ethiopia',
-      productsSupplied: 35,
-      purchaseCount: 18,
-      totalPurchaseValue: 125450,
-      lastPurchase: '2026-08-18',
-      createdAt: '2026-07-15',
-      status: 'active',
-      notes: 'Main engine and brake parts supplier.',
-    },
-    {
-      id: '2',
-      name: 'Mekelle Auto Supplies',
-      contactPerson: 'Hana Tesfaye',
-      phone: '+251 922 456 789',
-      email: 'sales@mekelleauto.et',
-      address: 'Hawelti, Mekelle',
-      city: 'Mekelle',
-      country: 'Ethiopia',
-      productsSupplied: 18,
-      purchaseCount: 11,
-      totalPurchaseValue: 78400,
-      lastPurchase: '2026-08-15',
-      createdAt: '2026-07-20',
-      status: 'active',
-      notes: 'Electrical and suspension components.',
-    },
-    {
-      id: '3',
-      name: 'Bahir Dar Motor Parts',
-      contactPerson: 'Dawit Alemu',
-      phone: '+251 933 567 890',
-      email: 'contact@bdmotor.et',
-      address: 'Piazza, Bahir Dar',
-      city: 'Bahir Dar',
-      country: 'Ethiopia',
-      productsSupplied: 27,
-      purchaseCount: 14,
-      totalPurchaseValue: 96300,
-      lastPurchase: '2026-08-10',
-      createdAt: '2026-07-25',
-      status: 'active',
-      notes: 'Filters, lubricants and engine components.',
-    },
-    {
-      id: '4',
-      name: 'Prime Automotive',
-      contactPerson: 'Samuel Bekele',
-      phone: '+251 911 678 901',
-      email: 'primeauto@example.com',
-      address: 'Kazanchis, Addis Ababa',
-      city: 'Addis Ababa',
-      country: 'Ethiopia',
-      productsSupplied: 12,
-      purchaseCount: 6,
-      totalPurchaseValue: 41200,
-      lastPurchase: '2026-07-28',
-      createdAt: '2026-06-30',
-      status: 'inactive',
-      notes: 'Currently inactive supplier.',
-    },
-    {
-      id: '5',
-      name: 'National Spare Parts',
-      contactPerson: 'Meron Girma',
-      phone: '+251 944 789 012',
-      email: 'nationalparts@example.com',
-      address: 'Merkato, Addis Ababa',
-      city: 'Addis Ababa',
-      country: 'Ethiopia',
-      productsSupplied: 42,
-      purchaseCount: 23,
-      totalPurchaseValue: 186750,
-      lastPurchase: '2026-08-17',
-      createdAt: '2026-06-18',
-      status: 'active',
-      notes: 'Large supplier with wide product range.',
-    },
-    {
-      id: '6',
-      name: 'Blue Nile Auto',
-      contactPerson: 'Yonas Worku',
-      phone: '+251 955 890 123',
-      email: 'bluenile@example.com',
-      address: 'Kebele 03, Bahir Dar',
-      city: 'Bahir Dar',
-      country: 'Ethiopia',
-      productsSupplied: 9,
-      purchaseCount: 4,
-      totalPurchaseValue: 28600,
-      lastPurchase: '2026-07-20',
-      createdAt: '2026-06-12',
-      status: 'inactive',
-      notes: '',
-    },
-  ]);
-
-  // ============================================================
   // STATE
   // ============================================================
+
+  const [suppliers, setSuppliers] = useState([]);
+
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const [error, setError] = useState('');
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -150,94 +45,72 @@ const Suppliers = () => {
   const [openMenuId, setOpenMenuId] = useState(null);
 
   const [formData, setFormData] = useState({
-    name: '',
-    contactPerson: '',
+    supplierName: '',
     phone: '',
     email: '',
     address: '',
-    city: '',
-    country: 'Ethiopia',
-    notes: '',
-    status: 'active',
+    isActive: true,
   });
 
   const [errors, setErrors] = useState({});
-  const [isSaving, setIsSaving] = useState(false);
 
   const [notification, setNotification] = useState(null);
 
-  // ============================================================
-  // LOCATIONS
-  // ============================================================
-
-  const locations = useMemo(() => {
-    const uniqueCities = [
-      ...new Set(
-        suppliers
-          .map((supplier) => supplier.city)
-          .filter(Boolean)
-      ),
-    ];
-
-    return uniqueCities.sort();
-  }, [suppliers]);
+  // Purchase history
+  const [supplierPurchases, setSupplierPurchases] = useState([]);
+  const [isLoadingPurchases, setIsLoadingPurchases] = useState(false);
 
   // ============================================================
-  // FILTER SUPPLIERS
+  // LOAD SUPPLIERS
   // ============================================================
 
-  const filteredSuppliers = useMemo(() => {
-    const query = searchTerm.trim().toLowerCase();
+  const loadSuppliers = async () => {
+    try {
+      setIsLoading(true);
+      setError('');
 
-    return suppliers.filter((supplier) => {
-      const matchesSearch =
-        !query ||
-        supplier.name.toLowerCase().includes(query) ||
-        supplier.contactPerson.toLowerCase().includes(query) ||
-        supplier.phone.toLowerCase().includes(query) ||
-        supplier.email.toLowerCase().includes(query) ||
-        supplier.city.toLowerCase().includes(query);
+      const response = await supplierService.getSuppliers();
 
-      const matchesStatus =
-        statusFilter === 'all' ||
-        supplier.status === statusFilter;
+      /*
+       * Backend response expected:
+       *
+       * {
+       *   success: true,
+       *   message: "...",
+       *   data: [...]
+       * }
+       */
 
-      const matchesLocation =
-        locationFilter === 'all' ||
-        supplier.city === locationFilter;
+      if (response?.success) {
+        setSuppliers(response.data || []);
+      } else {
+        setSuppliers([]);
+        setError(
+          response?.message || 'Failed to load suppliers.'
+        );
+      }
+    } catch (err) {
+      console.error('Error loading suppliers:', err);
 
-      return (
-        matchesSearch &&
-        matchesStatus &&
-        matchesLocation
-      );
-    });
-  }, [
-    suppliers,
-    searchTerm,
-    statusFilter,
-    locationFilter,
-  ]);
+      const message =
+        err?.response?.data?.message ||
+        err?.message ||
+        'Failed to load suppliers.';
+
+      setError(message);
+      setSuppliers([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // ============================================================
-  // STATISTICS
+  // INITIAL LOAD
   // ============================================================
 
-  const totalSuppliers = suppliers.length;
-
-  const activeSuppliers = suppliers.filter(
-    (supplier) => supplier.status === 'active'
-  ).length;
-
-  const inactiveSuppliers = suppliers.filter(
-    (supplier) => supplier.status === 'inactive'
-  ).length;
-
-  const totalPurchaseValue = suppliers.reduce(
-    (total, supplier) =>
-      total + Number(supplier.totalPurchaseValue || 0),
-    0
-  );
+  useEffect(() => {
+    loadSuppliers();
+  }, []);
 
   // ============================================================
   // NOTIFICATION
@@ -260,15 +133,11 @@ const Suppliers = () => {
 
   const resetForm = () => {
     setFormData({
-      name: '',
-      contactPerson: '',
+      supplierName: '',
       phone: '',
       email: '',
       address: '',
-      city: '',
-      country: 'Ethiopia',
-      notes: '',
-      status: 'active',
+      isActive: true,
     });
 
     setErrors({});
@@ -293,15 +162,11 @@ const Suppliers = () => {
     setEditingSupplier(supplier);
 
     setFormData({
-      name: supplier.name,
-      contactPerson: supplier.contactPerson,
-      phone: supplier.phone,
-      email: supplier.email,
-      address: supplier.address,
-      city: supplier.city,
-      country: supplier.country,
-      notes: supplier.notes || '',
-      status: supplier.status,
+      supplierName: supplier.supplierName || '',
+      phone: supplier.phone || '',
+      email: supplier.email || '',
+      address: supplier.address || '',
+      isActive: supplier.isActive !== false,
     });
 
     setErrors({});
@@ -342,36 +207,51 @@ const Suppliers = () => {
   };
 
   // ============================================================
+  // STATUS CHANGE
+  // ============================================================
+
+  const handleStatusChange = (event) => {
+    const value = event.target.value;
+
+    setFormData((previous) => ({
+      ...previous,
+      isActive: value === 'active',
+    }));
+  };
+
+  // ============================================================
   // VALIDATION
   // ============================================================
 
   const validateForm = () => {
     const newErrors = {};
 
-    const name = formData.name.trim();
-    const contactPerson = formData.contactPerson.trim();
-    const phone = formData.phone.trim();
-    const email = formData.email.trim();
-    const city = formData.city.trim();
+    const supplierName =
+      formData.supplierName.trim();
 
-    if (!name) {
-      newErrors.name = 'Supplier name is required.';
-    } else if (name.length < 2) {
-      newErrors.name =
+    const phone =
+      formData.phone.trim();
+
+    const email =
+      formData.email.trim();
+
+    if (!supplierName) {
+      newErrors.supplierName =
+        'Supplier name is required.';
+    } else if (supplierName.length < 2) {
+      newErrors.supplierName =
         'Supplier name must contain at least 2 characters.';
-    } else if (name.length > 100) {
-      newErrors.name =
+    } else if (supplierName.length > 100) {
+      newErrors.supplierName =
         'Supplier name cannot exceed 100 characters.';
-    }
-
-    if (!contactPerson) {
-      newErrors.contactPerson =
-        'Contact person is required.';
     }
 
     if (!phone) {
       newErrors.phone =
         'Phone number is required.';
+    } else if (phone.length > 30) {
+      newErrors.phone =
+        'Phone number cannot exceed 30 characters.';
     }
 
     if (email) {
@@ -384,20 +264,21 @@ const Suppliers = () => {
       }
     }
 
-    if (!city) {
-      newErrors.city = 'City is required.';
+    if (formData.address.trim().length > 200) {
+      newErrors.address =
+        'Address cannot exceed 200 characters.';
     }
 
-    const duplicate = suppliers.some(
-      (supplier) =>
-        supplier.name.toLowerCase() === name.toLowerCase() &&
-        supplier.id !== editingSupplier?.id
-    );
-
-    if (duplicate) {
-      newErrors.name =
-        'A supplier with this name already exists.';
-    }
+    /*
+     * We intentionally do NOT perform duplicate validation
+     * against the frontend state.
+     *
+     * The backend has:
+     *
+     * companyId + supplierName = unique
+     *
+     * so the backend should be the final authority.
+     */
 
     setErrors(newErrors);
 
@@ -417,107 +298,200 @@ const Suppliers = () => {
 
     setIsSaving(true);
 
-    // Temporary API simulation
-    await new Promise((resolve) =>
-      setTimeout(resolve, 500)
-    );
+    try {
+      const cleanData = {
+        supplierName:
+          formData.supplierName.trim(),
 
-    const cleanData = {
-      name: formData.name.trim(),
-      contactPerson:
-        formData.contactPerson.trim(),
-      phone: formData.phone.trim(),
-      email: formData.email.trim(),
-      address: formData.address.trim(),
-      city: formData.city.trim(),
-      country: formData.country.trim(),
-      notes: formData.notes.trim(),
-      status: formData.status,
-    };
+        phone:
+          formData.phone.trim(),
 
-    if (editingSupplier) {
-      setSuppliers((previous) =>
-        previous.map((supplier) =>
-          supplier.id === editingSupplier.id
-            ? {
-                ...supplier,
-                ...cleanData,
-              }
-            : supplier
-        )
-      );
+        email:
+          formData.email.trim(),
 
-      showNotification(
-        'success',
-        'Supplier updated successfully.'
-      );
-    } else {
-      const newSupplier = {
-        id: Date.now().toString(),
-        ...cleanData,
-        productsSupplied: 0,
-        purchaseCount: 0,
-        totalPurchaseValue: 0,
-        lastPurchase: null,
-        createdAt:
-          new Date().toISOString().split('T')[0],
+        address:
+          formData.address.trim(),
+
+        isActive:
+          formData.isActive,
       };
 
-      setSuppliers((previous) => [
-        ...previous,
-        newSupplier,
-      ]);
+      let response;
+
+      // --------------------------------------------------------
+      // UPDATE
+      // --------------------------------------------------------
+
+      if (editingSupplier) {
+        response =
+          await supplierService.updateSupplier(
+            editingSupplier._id,
+            cleanData
+          );
+
+        if (!response?.success) {
+          throw new Error(
+            response?.message ||
+              'Failed to update supplier.'
+          );
+        }
+
+        showNotification(
+          'success',
+          'Supplier updated successfully.'
+        );
+      }
+
+      // --------------------------------------------------------
+      // CREATE
+      // --------------------------------------------------------
+
+      else {
+        response =
+          await supplierService.createSupplier(
+            cleanData
+          );
+
+        if (!response?.success) {
+          throw new Error(
+            response?.message ||
+              'Failed to create supplier.'
+          );
+        }
+
+        showNotification(
+          'success',
+          'Supplier created successfully.'
+        );
+      }
+
+      /*
+       * Reload from backend instead of manually modifying
+       * frontend state.
+       *
+       * This guarantees the UI represents the database.
+       */
+
+      await loadSuppliers();
+
+      handleCloseModal();
+    } catch (err) {
+      console.error(
+        'Supplier save error:',
+        err
+      );
+
+      const message =
+        err?.response?.data?.message ||
+        err?.message ||
+        'Failed to save supplier.';
 
       showNotification(
-        'success',
-        'Supplier created successfully.'
+        'error',
+        message
       );
+    } finally {
+      setIsSaving(false);
     }
-
-    setIsSaving(false);
-    handleCloseModal();
   };
 
   // ============================================================
   // VIEW DETAILS
   // ============================================================
 
-  const handleViewDetails = (supplier) => {
+  const handleViewDetails = async (supplier) => {
     setViewingSupplier(supplier);
     setOpenMenuId(null);
+
+    /*
+     * Load purchase history from backend.
+     */
+
+    try {
+      setIsLoadingPurchases(true);
+      setSupplierPurchases([]);
+
+      const response =
+        await supplierService.getSupplierPurchases(
+          supplier._id
+        );
+
+      if (response?.success) {
+        setSupplierPurchases(
+          response.data || []
+        );
+      } else {
+        showNotification(
+          'error',
+          response?.message ||
+            'Failed to load purchase history.'
+        );
+      }
+    } catch (err) {
+      console.error(
+        'Error loading supplier purchases:',
+        err
+      );
+
+      showNotification(
+        'error',
+        err?.response?.data?.message ||
+          'Failed to load purchase history.'
+      );
+    } finally {
+      setIsLoadingPurchases(false);
+    }
   };
 
   // ============================================================
   // TOGGLE STATUS
   // ============================================================
 
-  const handleToggleStatus = (supplier) => {
+  const handleToggleStatus = async (supplier) => {
     const newStatus =
-      supplier.status === 'active'
-        ? 'inactive'
-        : 'active';
+      !supplier.isActive;
 
-    setSuppliers((previous) =>
-      previous.map((item) =>
-        item.id === supplier.id
-          ? {
-              ...item,
-              status: newStatus,
-            }
-          : item
-      )
-    );
+    try {
+      setOpenMenuId(null);
 
-    setOpenMenuId(null);
+      const response =
+        await supplierService.updateSupplier(
+          supplier._id,
+          {
+            isActive: newStatus,
+          }
+        );
 
-    showNotification(
-      'success',
-      `${supplier.name} has been ${
-        newStatus === 'active'
-          ? 'activated'
-          : 'deactivated'
-      }.`
-    );
+      if (!response?.success) {
+        throw new Error(
+          response?.message ||
+            'Failed to update supplier status.'
+        );
+      }
+
+      showNotification(
+        'success',
+        `${supplier.supplierName} has been ${
+          newStatus
+            ? 'activated'
+            : 'deactivated'
+        }.`
+      );
+
+      await loadSuppliers();
+    } catch (err) {
+      console.error(
+        'Supplier status update error:',
+        err
+      );
+
+      showNotification(
+        'error',
+        err?.response?.data?.message ||
+          err?.message ||
+          'Failed to update supplier status.'
+      );
+    }
   };
 
   // ============================================================
@@ -529,54 +503,172 @@ const Suppliers = () => {
     setOpenMenuId(null);
   };
 
-  const confirmDelete = () => {
+  // ============================================================
+  // CONFIRM DELETE
+  // ============================================================
+
+  const confirmDelete = async () => {
     if (!supplierToDelete) return;
 
-    if (supplierToDelete.purchaseCount > 0) {
+    try {
+      const response =
+        await supplierService.deleteSupplier(
+          supplierToDelete._id
+        );
+
+      if (!response?.success) {
+        throw new Error(
+          response?.message ||
+            'Failed to delete supplier.'
+        );
+      }
+
       showNotification(
-        'error',
-        'This supplier has purchase history and should not be deleted.'
+        'success',
+        `${supplierToDelete.supplierName} deleted successfully.`
       );
 
       setSupplierToDelete(null);
-      return;
+
+      await loadSuppliers();
+    } catch (err) {
+      console.error(
+        'Supplier delete error:',
+        err
+      );
+
+      const message =
+        err?.response?.data?.message ||
+        err?.message ||
+        'Failed to delete supplier.';
+
+      showNotification(
+        'error',
+        message
+      );
+
+      /*
+       * Keep confirmation modal open when deletion fails.
+       * This allows the user to see the error.
+       */
     }
-
-    setSuppliers((previous) =>
-      previous.filter(
-        (supplier) =>
-          supplier.id !== supplierToDelete.id
-      )
-    );
-
-    showNotification(
-      'success',
-      `${supplierToDelete.name} deleted successfully.`
-    );
-
-    setSupplierToDelete(null);
   };
 
   // ============================================================
-  // FORMAT CURRENCY
+  // LOCATIONS
   // ============================================================
 
-  const formatCurrency = (value) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'ETB',
-      maximumFractionDigits: 0,
-    }).format(value || 0);
-  };
+  /*
+   * Your backend does NOT have a city field.
+   *
+   * Therefore location filtering is based on the address field.
+   *
+   * We collect unique addresses instead of pretending
+   * there is a city field in the backend.
+   */
+
+  const locations = useMemo(() => {
+    const uniqueAddresses = [
+      ...new Set(
+        suppliers
+          .map((supplier) =>
+            supplier.address?.trim()
+          )
+          .filter(Boolean)
+      ),
+    ];
+
+    return uniqueAddresses.sort();
+  }, [suppliers]);
+
+  // ============================================================
+  // FILTER SUPPLIERS
+  // ============================================================
+
+  const filteredSuppliers = useMemo(() => {
+    const query =
+      searchTerm.trim().toLowerCase();
+
+    return suppliers.filter((supplier) => {
+      const supplierName =
+        supplier.supplierName?.toLowerCase() || '';
+
+      const phone =
+        supplier.phone?.toLowerCase() || '';
+
+      const email =
+        supplier.email?.toLowerCase() || '';
+
+      const address =
+        supplier.address?.toLowerCase() || '';
+
+      const matchesSearch =
+        !query ||
+        supplierName.includes(query) ||
+        phone.includes(query) ||
+        email.includes(query) ||
+        address.includes(query);
+
+      const supplierStatus =
+        supplier.isActive
+          ? 'active'
+          : 'inactive';
+
+      const matchesStatus =
+        statusFilter === 'all' ||
+        supplierStatus === statusFilter;
+
+      const matchesLocation =
+        locationFilter === 'all' ||
+        supplier.address === locationFilter;
+
+      return (
+        matchesSearch &&
+        matchesStatus &&
+        matchesLocation
+      );
+    });
+  }, [
+    suppliers,
+    searchTerm,
+    statusFilter,
+    locationFilter,
+  ]);
+
+  // ============================================================
+  // STATISTICS
+  // ============================================================
+
+  const totalSuppliers =
+    suppliers.length;
+
+  const activeSuppliers =
+    suppliers.filter(
+      (supplier) => supplier.isActive
+    ).length;
+
+  const inactiveSuppliers =
+    suppliers.filter(
+      (supplier) => !supplier.isActive
+    ).length;
 
   // ============================================================
   // FORMAT DATE
   // ============================================================
 
   const formatDate = (date) => {
-    if (!date) return 'No purchases yet';
+    if (!date) {
+      return '—';
+    }
 
-    return new Date(date).toLocaleDateString(
+    const parsedDate =
+      new Date(date);
+
+    if (Number.isNaN(parsedDate.getTime())) {
+      return '—';
+    }
+
+    return parsedDate.toLocaleDateString(
       'en-US',
       {
         year: 'numeric',
@@ -590,9 +682,7 @@ const Suppliers = () => {
   // STATUS BADGE
   // ============================================================
 
-  const StatusBadge = ({ status }) => {
-    const isActive = status === 'active';
-
+  const StatusBadge = ({ isActive }) => {
     return (
       <span
         className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${
@@ -609,10 +699,40 @@ const Suppliers = () => {
           }`}
         />
 
-        {isActive ? 'Active' : 'Inactive'}
+        {isActive
+          ? 'Active'
+          : 'Inactive'}
       </span>
     );
   };
+
+  // ============================================================
+  // LOADING STATE
+  // ============================================================
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-slate-50">
+        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+
+          <div className="flex min-h-[400px] items-center justify-center">
+
+            <div className="text-center">
+
+              <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-blue-600" />
+
+              <p className="mt-4 text-sm font-medium text-slate-500">
+                Loading suppliers...
+              </p>
+
+            </div>
+
+          </div>
+
+        </div>
+      </div>
+    );
+  }
 
   // ============================================================
   // RENDER
@@ -634,6 +754,7 @@ const Suppliers = () => {
                 : 'border-red-200 text-red-700'
             }`}
           >
+
             {notification.type === 'success' ? (
               <FiCheckCircle size={18} />
             ) : (
@@ -645,11 +766,14 @@ const Suppliers = () => {
             </span>
 
             <button
-              onClick={() => setNotification(null)}
+              onClick={() =>
+                setNotification(null)
+              }
               className="ml-2 text-slate-400 hover:text-slate-700"
             >
               <FiX size={16} />
             </button>
+
           </div>
         </div>
       )}
@@ -658,7 +782,7 @@ const Suppliers = () => {
           PAGE CONTAINER
       ======================================================== */}
 
-      <div className="mx-auto max-w-7x1 px-4 py-6 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
 
         {/* ======================================================
             HEADER
@@ -667,14 +791,15 @@ const Suppliers = () => {
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 
           <div>
+
             <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
               Suppliers
             </h1>
 
             <p className="mt-1 text-sm text-slate-500 sm:text-base">
-              Manage supplier relationships, contact information,
-              and purchasing activity.
+              Manage your supplier relationships and contact information.
             </p>
+
           </div>
 
           <button
@@ -684,19 +809,50 @@ const Suppliers = () => {
             <FiPlus size={18} />
             Add Supplier
           </button>
+
         </div>
+
+        {/* ======================================================
+            ERROR
+        ====================================================== */}
+
+        {error && (
+          <div className="mb-6 flex items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-red-700">
+
+            <div className="flex items-center gap-2">
+
+              <FiAlertCircle size={18} />
+
+              <p className="text-sm font-medium">
+                {error}
+              </p>
+
+            </div>
+
+            <button
+              onClick={loadSuppliers}
+              className="rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-red-700 shadow-sm hover:bg-red-100"
+            >
+              Retry
+            </button>
+
+          </div>
+        )}
 
         {/* ======================================================
             STATISTICS
         ====================================================== */}
 
-        <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
 
-          {/* Total Suppliers */}
+          {/* Total */}
+
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+
             <div className="flex items-center justify-between">
 
               <div>
+
                 <p className="text-sm font-medium text-slate-500">
                   Total Suppliers
                 </p>
@@ -708,19 +864,25 @@ const Suppliers = () => {
                 <p className="mt-1 text-xs text-slate-500">
                   Registered suppliers
                 </p>
+
               </div>
 
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
                 <FiTruck size={23} />
               </div>
+
             </div>
+
           </div>
 
           {/* Active */}
+
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+
             <div className="flex items-center justify-between">
 
               <div>
+
                 <p className="text-sm font-medium text-slate-500">
                   Active Suppliers
                 </p>
@@ -730,21 +892,27 @@ const Suppliers = () => {
                 </p>
 
                 <p className="mt-1 text-xs text-emerald-600">
-                  Currently supplying
+                  Currently active
                 </p>
+
               </div>
 
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
                 <FiCheckCircle size={23} />
               </div>
+
             </div>
+
           </div>
 
           {/* Inactive */}
+
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+
             <div className="flex items-center justify-between">
 
               <div>
+
                 <p className="text-sm font-medium text-slate-500">
                   Inactive Suppliers
                 </p>
@@ -756,64 +924,49 @@ const Suppliers = () => {
                 <p className="mt-1 text-xs text-slate-500">
                   Currently inactive
                 </p>
+
               </div>
 
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-slate-500">
                 <FiPower size={23} />
               </div>
+
             </div>
+
           </div>
 
-          {/* Purchase Value */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="flex items-center justify-between">
-
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-slate-500">
-                  Purchase Value
-                </p>
-
-                <p className="mt-2 truncate text-2xl font-bold text-slate-900">
-                  {formatCurrency(totalPurchaseValue)}
-                </p>
-
-                <p className="mt-1 text-xs text-slate-500">
-                  Total supplier purchases
-                </p>
-              </div>
-
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-violet-600">
-                <FiDollarSign size={23} />
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* ======================================================
             MAIN CARD
         ====================================================== */}
 
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm m-0">
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
 
           {/* Toolbar */}
-          <div className="border-b border-slate-200 p-14 sm:p-5">
+
+          <div className="border-b border-slate-200 p-5">
 
             <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
 
               <div>
+
                 <h2 className="text-base font-bold text-slate-900">
                   Supplier Directory
                 </h2>
 
                 <p className="mt-1 text-sm text-slate-500">
-                  View and manage your supplier relationships.
+                  View and manage your suppliers.
                 </p>
+
               </div>
 
               <div className="flex flex-col gap-3 sm:flex-row">
 
                 {/* Search */}
+
                 <div className="relative w-full sm:w-72">
+
                   <FiSearch
                     size={18}
                     className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
@@ -823,7 +976,9 @@ const Suppliers = () => {
                     type="text"
                     value={searchTerm}
                     onChange={(event) =>
-                      setSearchTerm(event.target.value)
+                      setSearchTerm(
+                        event.target.value
+                      )
                     }
                     placeholder="Search suppliers..."
                     className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-10 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
@@ -831,70 +986,94 @@ const Suppliers = () => {
 
                   {searchTerm && (
                     <button
-                      onClick={() => setSearchTerm('')}
+                      onClick={() =>
+                        setSearchTerm('')
+                      }
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
                     >
                       <FiX size={17} />
                     </button>
                   )}
+
                 </div>
 
-                {/* Status Filter */}
+                {/* Status */}
+
                 <div className="relative">
+
                   <select
                     value={statusFilter}
                     onChange={(event) =>
-                      setStatusFilter(event.target.value)
+                      setStatusFilter(
+                        event.target.value
+                      )
                     }
                     className="w-full appearance-none rounded-xl border border-slate-300 bg-white py-2.5 pl-3 pr-9 text-sm font-medium text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 sm:w-36"
                   >
+
                     <option value="all">
                       All Status
                     </option>
+
                     <option value="active">
                       Active
                     </option>
+
                     <option value="inactive">
                       Inactive
                     </option>
+
                   </select>
 
                   <FiChevronDown
                     className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
                     size={15}
                   />
+
                 </div>
 
-                {/* Location Filter */}
+                {/* Address */}
+
                 <div className="relative">
+
                   <select
                     value={locationFilter}
                     onChange={(event) =>
-                      setLocationFilter(event.target.value)
+                      setLocationFilter(
+                        event.target.value
+                      )
                     }
-                    className="w-full appearance-none rounded-xl border border-slate-300 bg-white py-2.5 pl-3 pr-9 text-sm font-medium text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 sm:w-40"
+                    className="w-full appearance-none rounded-xl border border-slate-300 bg-white py-2.5 pl-3 pr-9 text-sm font-medium text-slate-700 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 sm:w-48"
                   >
+
                     <option value="all">
-                      All Locations
+                      All Addresses
                     </option>
 
-                    {locations.map((location) => (
-                      <option
-                        key={location}
-                        value={location}
-                      >
-                        {location}
-                      </option>
-                    ))}
+                    {locations.map(
+                      (location) => (
+                        <option
+                          key={location}
+                          value={location}
+                        >
+                          {location}
+                        </option>
+                      )
+                    )}
+
                   </select>
 
                   <FiChevronDown
                     className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
                     size={15}
                   />
+
                 </div>
+
               </div>
+
             </div>
+
           </div>
 
           {/* ====================================================
@@ -903,9 +1082,10 @@ const Suppliers = () => {
 
           <div className="hidden overflow-x-auto md:block">
 
-            <table className="w-full min-w-[1050px]">
+            <table className="w-full min-w-[900px]">
 
               <thead>
+
                 <tr className="border-b border-slate-200 bg-slate-50">
 
                   <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -913,19 +1093,15 @@ const Suppliers = () => {
                   </th>
 
                   <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Contact
+                    Phone
                   </th>
 
                   <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Location
+                    Email
                   </th>
 
                   <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Products
-                  </th>
-
-                  <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Purchase Value
+                    Address
                   </th>
 
                   <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -937,124 +1113,118 @@ const Suppliers = () => {
                   </th>
 
                 </tr>
+
               </thead>
 
               <tbody className="divide-y divide-slate-100">
 
-                {filteredSuppliers.map((supplier) => {
-
-                  return (
+                {filteredSuppliers.map(
+                  (supplier) => (
                     <tr
-                      key={supplier.id}
+                      key={supplier._id}
                       className="transition hover:bg-slate-50"
                     >
 
                       {/* Supplier */}
+
                       <td className="px-5 py-4">
 
                         <div className="flex items-center gap-3">
 
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                            <FiBriefcaseIcon />
+                          </div>
+
                           <div className="min-w-0">
+
                             <p className="truncate font-semibold text-slate-900">
-                              {supplier.name}
+                              {supplier.supplierName}
                             </p>
 
-                            <p className="mt-0.5 text-xs text-slate-500">
-                              {supplier.contactPerson}
+                            <p className="mt-0.5 text-xs text-slate-400">
+                              Added{' '}
+                              {formatDate(
+                                supplier.createdAt
+                              )}
                             </p>
+
                           </div>
 
                         </div>
 
                       </td>
 
-                      {/* Contact */}
+                      {/* Phone */}
+
                       <td className="px-5 py-4">
 
-                        <div className="space-y-1">
+                        <p className="flex items-center gap-2 text-sm text-slate-700">
 
-                          <p className="flex items-center gap-2 text-sm text-slate-700">
-                            <FiPhone
-                              size={13}
-                              className="text-slate-400"
-                            />
-                            {supplier.phone}
-                          </p>
-
-                          <p className="flex max-w-[210px] items-center gap-2 truncate text-xs text-slate-500">
-                            <FiMail
-                              size={13}
-                              className="shrink-0 text-slate-400"
-                            />
-                            <span className="truncate">
-                              {supplier.email || 'No email'}
-                            </span>
-                          </p>
-
-                        </div>
-
-                      </td>
-
-                      {/* Location */}
-                      <td className="px-5 py-4">
-
-                        <div className="flex items-center gap-2">
-
-                          <FiMapPin
-                            size={15}
+                          <FiPhone
+                            size={14}
                             className="text-slate-400"
                           />
 
-                          <div>
-                            <p className="text-sm font-medium text-slate-700">
-                              {supplier.city}
-                            </p>
+                          {supplier.phone || '—'}
 
-                            <p className="text-xs text-slate-400">
-                              {supplier.country}
-                            </p>
-                          </div>
-
-                        </div>
+                        </p>
 
                       </td>
 
-                      {/* Products */}
+                      {/* Email */}
+
                       <td className="px-5 py-4">
 
-                        <div className="inline-flex items-center gap-2 rounded-lg bg-slate-100 px-2.5 py-1.5">
+                        <p className="flex max-w-[220px] items-center gap-2 truncate text-sm text-slate-600">
 
-                          <span className="text-sm font-semibold text-slate-700">
-                            {supplier.productsSupplied}
+                          <FiMail
+                            size={14}
+                            className="shrink-0 text-slate-400"
+                          />
+
+                          <span className="truncate">
+                            {supplier.email ||
+                              'No email'}
+                          </span>
+
+                        </p>
+
+                      </td>
+
+                      {/* Address */}
+
+                      <td className="px-5 py-4">
+
+                        <div className="flex items-start gap-2">
+
+                          <FiMapPin
+                            size={15}
+                            className="mt-0.5 shrink-0 text-slate-400"
+                          />
+
+                          <span className="max-w-[220px] text-sm text-slate-700">
+                            {supplier.address ||
+                              'No address'}
                           </span>
 
                         </div>
 
                       </td>
 
-                      {/* Purchase Value */}
-                      <td className="px-5 py-4">
-
-                        <p className="text-sm font-semibold text-slate-800">
-                          {formatCurrency(
-                            supplier.totalPurchaseValue
-                          )}
-                        </p>
-
-                        <p className="mt-0.5 text-xs text-slate-400">
-                          {supplier.purchaseCount} purchases
-                        </p>
-
-                      </td>
-
                       {/* Status */}
+
                       <td className="px-5 py-4">
+
                         <StatusBadge
-                          status={supplier.status}
+                          isActive={
+                            supplier.isActive
+                          }
                         />
+
                       </td>
 
                       {/* Actions */}
+
                       <td className="relative px-5 py-4">
 
                         <div className="flex justify-end">
@@ -1062,20 +1232,26 @@ const Suppliers = () => {
                           <button
                             onClick={() =>
                               setOpenMenuId(
-                                openMenuId === supplier.id
+                                openMenuId ===
+                                  supplier._id
                                   ? null
-                                  : supplier.id
+                                  : supplier._id
                               )
                             }
                             className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
                             title="More actions"
                           >
-                            <FiMoreVertical size={18} />
+                            <FiMoreVertical
+                              size={18}
+                            />
                           </button>
 
-                          {openMenuId === supplier.id && (
+                          {openMenuId ===
+                            supplier._id && (
                             <ActionMenu
-                              supplier={supplier}
+                              supplier={
+                                supplier
+                              }
                               onView={
                                 handleViewDetails
                               }
@@ -1096,12 +1272,13 @@ const Suppliers = () => {
                       </td>
 
                     </tr>
-                  );
-                })}
+                  )
+                )}
 
               </tbody>
 
             </table>
+
           </div>
 
           {/* ====================================================
@@ -1110,148 +1287,144 @@ const Suppliers = () => {
 
           <div className="divide-y divide-slate-100 md:hidden">
 
-            {filteredSuppliers.map((supplier) => (
+            {filteredSuppliers.map(
+              (supplier) => (
+                <div
+                  key={supplier._id}
+                  className="p-4"
+                >
 
-              <div
-                key={supplier.id}
-                className="p-4"
-              >
+                  <div className="flex items-start justify-between gap-3">
 
-                <div className="flex items-start justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-3">
 
-                  <div className="flex min-w-0 items-center gap-3">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                        <FiBriefcaseIcon />
+                      </div>
 
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-                      <FiBriefcase size={19} />
+                      <div className="min-w-0">
+
+                        <h3 className="truncate font-semibold text-slate-900">
+                          {supplier.supplierName}
+                        </h3>
+
+                        <p className="mt-1 text-xs text-slate-500">
+                          {supplier.phone}
+                        </p>
+
+                      </div>
+
                     </div>
 
-                    <div className="min-w-0">
+                    <div className="relative">
 
-                      <h3 className="truncate font-semibold text-slate-900">
-                        {supplier.name}
-                      </h3>
+                      <button
+                        onClick={() =>
+                          setOpenMenuId(
+                            openMenuId ===
+                              supplier._id
+                              ? null
+                              : supplier._id
+                          )
+                        }
+                        className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                      >
+                        <FiMoreVertical
+                          size={18}
+                        />
+                      </button>
 
-                      <p className="mt-1 text-xs text-slate-500">
-                        {supplier.contactPerson}
+                      {openMenuId ===
+                        supplier._id && (
+                        <ActionMenu
+                          supplier={
+                            supplier
+                          }
+                          onView={
+                            handleViewDetails
+                          }
+                          onEdit={
+                            handleOpenEdit
+                          }
+                          onToggle={
+                            handleToggleStatus
+                          }
+                          onDelete={
+                            handleDelete
+                          }
+                        />
+                      )}
+
+                    </div>
+
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-1 gap-3">
+
+                    <div className="rounded-xl bg-slate-50 p-3">
+
+                      <div className="flex items-center gap-2 text-xs text-slate-500">
+                        <FiPhone size={13} />
+                        Phone
+                      </div>
+
+                      <p className="mt-1 truncate text-sm font-medium text-slate-700">
+                        {supplier.phone ||
+                          '—'}
+                      </p>
+
+                    </div>
+
+                    <div className="rounded-xl bg-slate-50 p-3">
+
+                      <div className="flex items-center gap-2 text-xs text-slate-500">
+                        <FiMail size={13} />
+                        Email
+                      </div>
+
+                      <p className="mt-1 truncate text-sm font-medium text-slate-700">
+                        {supplier.email ||
+                          'No email'}
+                      </p>
+
+                    </div>
+
+                    <div className="rounded-xl bg-slate-50 p-3">
+
+                      <div className="flex items-center gap-2 text-xs text-slate-500">
+                        <FiMapPin size={13} />
+                        Address
+                      </div>
+
+                      <p className="mt-1 text-sm font-medium text-slate-700">
+                        {supplier.address ||
+                          'No address'}
                       </p>
 
                     </div>
 
                   </div>
 
-                  <div className="relative">
+                  <div className="mt-4 flex items-center justify-between">
 
-                    <button
-                      onClick={() =>
-                        setOpenMenuId(
-                          openMenuId === supplier.id
-                            ? null
-                            : supplier.id
-                        )
+                    <StatusBadge
+                      isActive={
+                        supplier.isActive
                       }
-                      className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-                    >
-                      <FiMoreVertical size={18} />
-                    </button>
+                    />
 
-                    {openMenuId === supplier.id && (
-                      <ActionMenu
-                        supplier={supplier}
-                        onView={
-                          handleViewDetails
-                        }
-                        onEdit={
-                          handleOpenEdit
-                        }
-                        onToggle={
-                          handleToggleStatus
-                        }
-                        onDelete={
-                          handleDelete
-                        }
-                      />
-                    )}
-
-                  </div>
-
-                </div>
-
-                <div className="mt-4 grid grid-cols-2 gap-3">
-
-                  <div className="rounded-xl bg-slate-50 p-3">
-
-                    <div className="flex items-center gap-2 text-xs text-slate-500">
-                      <FiPhone size={13} />
-                      Contact
-                    </div>
-
-                    <p className="mt-1 truncate text-sm font-medium text-slate-700">
-                      {supplier.phone}
-                    </p>
-
-                  </div>
-
-                  <div className="rounded-xl bg-slate-50 p-3">
-
-                    <div className="flex items-center gap-2 text-xs text-slate-500">
-                      <FiMapPin size={13} />
-                      Location
-                    </div>
-
-                    <p className="mt-1 truncate text-sm font-medium text-slate-700">
-                      {supplier.city}
-                    </p>
-
-                  </div>
-
-                  <div className="rounded-xl bg-slate-50 p-3">
-
-                    <div className="flex items-center gap-2 text-xs text-slate-500">
-                      <FiShoppingBag size={13} />
-                      Products
-                    </div>
-
-                    <p className="mt-1 text-sm font-semibold text-slate-700">
-                      {supplier.productsSupplied}
-                    </p>
-
-                  </div>
-
-                  <div className="rounded-xl bg-slate-50 p-3">
-
-                    <div className="flex items-center gap-2 text-xs text-slate-500">
-                      <FiDollarSign size={13} />
-                      Purchases
-                    </div>
-
-                    <p className="mt-1 truncate text-sm font-semibold text-slate-700">
-                      {formatCurrency(
-                        supplier.totalPurchaseValue
+                    <span className="text-xs text-slate-400">
+                      Added{' '}
+                      {formatDate(
+                        supplier.createdAt
                       )}
-                    </p>
+                    </span>
 
                   </div>
 
                 </div>
-
-                <div className="mt-4 flex items-center justify-between">
-
-                  <StatusBadge
-                    status={supplier.status}
-                  />
-
-                  <span className="text-xs text-slate-400">
-                    Last purchase:{' '}
-                    {formatDate(
-                      supplier.lastPurchase
-                    )}
-                  </span>
-
-                </div>
-
-              </div>
-
-            ))}
+              )
+            )}
 
           </div>
 
@@ -1275,14 +1448,16 @@ const Suppliers = () => {
                 statusFilter !== 'all' ||
                 locationFilter !== 'all'
                   ? 'Try changing your search or filters.'
-                  : 'Add your first supplier to start managing supplier relationships.'}
+                  : 'Add your first supplier to start managing suppliers.'}
               </p>
 
               {!searchTerm &&
                 statusFilter === 'all' &&
                 locationFilter === 'all' && (
                   <button
-                    onClick={handleOpenCreate}
+                    onClick={
+                      handleOpenCreate
+                    }
                     className="mt-5 inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
                   >
                     <FiPlus size={17} />
@@ -1334,9 +1509,11 @@ const Suppliers = () => {
           <div className="w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl">
 
             {/* Header */}
+
             <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
 
               <div>
+
                 <div className="flex items-center gap-2">
 
                   <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
@@ -1353,15 +1530,18 @@ const Suppliers = () => {
 
                 <p className="mt-2 text-sm text-slate-500">
                   {editingSupplier
-                    ? 'Update supplier information and contact details.'
+                    ? 'Update supplier information.'
                     : 'Add a supplier to your SpareFlow supplier directory.'}
                 </p>
+
               </div>
 
               <button
-                onClick={handleCloseModal}
+                onClick={
+                  handleCloseModal
+                }
                 disabled={isSaving}
-                className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+                className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50"
               >
                 <FiX size={20} />
               </button>
@@ -1369,6 +1549,7 @@ const Suppliers = () => {
             </div>
 
             {/* Form */}
+
             <form
               onSubmit={handleSubmit}
               className="p-6"
@@ -1377,56 +1558,40 @@ const Suppliers = () => {
               <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
 
                 {/* Supplier Name */}
+
                 <FormField
                   label="Supplier / Company Name"
                   required
-                  error={errors.name}
+                  error={
+                    errors.supplierName
+                  }
                   className="sm:col-span-2"
                 >
                   <input
-                    name="name"
-                    value={formData.name}
-                    onChange={handleChange}
+                    name="supplierName"
+                    value={
+                      formData.supplierName
+                    }
+                    onChange={
+                      handleChange
+                    }
                     placeholder="e.g. Auto Parts Ethiopia"
+                    maxLength={100}
                     className={inputClass(
-                      errors.name
+                      errors.supplierName
                     )}
                   />
                 </FormField>
 
-                {/* Contact Person */}
-                <FormField
-                  label="Contact Person"
-                  required
-                  error={errors.contactPerson}
-                >
-                  <div className="relative">
-                    <FiUser
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-                      size={16}
-                    />
-
-                    <input
-                      name="contactPerson"
-                      value={
-                        formData.contactPerson
-                      }
-                      onChange={handleChange}
-                      placeholder="e.g. Abebe Kebede"
-                      className={`${inputClass(
-                        errors.contactPerson
-                      )} pl-10`}
-                    />
-                  </div>
-                </FormField>
-
                 {/* Phone */}
+
                 <FormField
                   label="Phone Number"
                   required
                   error={errors.phone}
                 >
                   <div className="relative">
+
                     <FiPhone
                       className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
                       size={16}
@@ -1434,22 +1599,30 @@ const Suppliers = () => {
 
                     <input
                       name="phone"
-                      value={formData.phone}
-                      onChange={handleChange}
+                      value={
+                        formData.phone
+                      }
+                      onChange={
+                        handleChange
+                      }
                       placeholder="+251 9XX XXX XXX"
+                      maxLength={30}
                       className={`${inputClass(
                         errors.phone
                       )} pl-10`}
                     />
+
                   </div>
                 </FormField>
 
                 {/* Email */}
+
                 <FormField
                   label="Email Address"
                   error={errors.email}
                 >
                   <div className="relative">
+
                     <FiMail
                       className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
                       size={16}
@@ -1458,74 +1631,72 @@ const Suppliers = () => {
                     <input
                       type="email"
                       name="email"
-                      value={formData.email}
-                      onChange={handleChange}
+                      value={
+                        formData.email
+                      }
+                      onChange={
+                        handleChange
+                      }
                       placeholder="supplier@example.com"
+                      maxLength={150}
                       className={`${inputClass(
                         errors.email
                       )} pl-10`}
                     />
+
                   </div>
-                </FormField>
-
-                {/* City */}
-                <FormField
-                  label="City"
-                  required
-                  error={errors.city}
-                >
-                  <div className="relative">
-                    <FiMapPin
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-                      size={16}
-                    />
-
-                    <input
-                      name="city"
-                      value={formData.city}
-                      onChange={handleChange}
-                      placeholder="e.g. Addis Ababa"
-                      className={`${inputClass(
-                        errors.city
-                      )} pl-10`}
-                    />
-                  </div>
-                </FormField>
-
-                {/* Country */}
-                <FormField label="Country">
-                  <input
-                    name="country"
-                    value={formData.country}
-                    onChange={handleChange}
-                    className={inputClass()}
-                  />
                 </FormField>
 
                 {/* Address */}
+
                 <FormField
                   label="Address"
+                  error={errors.address}
                   className="sm:col-span-2"
                 >
-                  <input
-                    name="address"
-                    value={formData.address}
-                    onChange={handleChange}
-                    placeholder="Street, area, building..."
-                    className={inputClass()}
-                  />
+                  <div className="relative">
+
+                    <FiMapPin
+                      className="absolute left-3 top-3 text-slate-400"
+                      size={16}
+                    />
+
+                    <textarea
+                      name="address"
+                      value={
+                        formData.address
+                      }
+                      onChange={
+                        handleChange
+                      }
+                      placeholder="Street, area, building..."
+                      maxLength={200}
+                      rows={3}
+                      className={`${inputClass(
+                        errors.address
+                      )} resize-none pl-10`}
+                    />
+
+                  </div>
                 </FormField>
 
                 {/* Status */}
+
                 <FormField
                   label="Supplier Status"
                 >
                   <select
-                    name="status"
-                    value={formData.status}
-                    onChange={handleChange}
+                    value={
+                      formData.isActive
+                        ? 'active'
+                        : 'inactive'
+                    }
+                    onChange={
+                      handleStatusChange
+                    }
                     className={inputClass()}
                   >
+
                     <option value="active">
                       Active
                     </option>
@@ -1533,32 +1704,21 @@ const Suppliers = () => {
                     <option value="inactive">
                       Inactive
                     </option>
-                  </select>
-                </FormField>
 
-                {/* Notes */}
-                <FormField
-                  label="Notes"
-                  className="sm:col-span-2"
-                >
-                  <textarea
-                    name="notes"
-                    value={formData.notes}
-                    onChange={handleChange}
-                    rows={3}
-                    placeholder="Additional supplier notes..."
-                    className={`${inputClass()} resize-none`}
-                  />
+                  </select>
                 </FormField>
 
               </div>
 
               {/* Actions */}
+
               <div className="mt-6 flex flex-col-reverse gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:justify-end">
 
                 <button
                   type="button"
-                  onClick={handleCloseModal}
+                  onClick={
+                    handleCloseModal
+                  }
                   disabled={isSaving}
                   className="rounded-xl border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-50"
                 >
@@ -1570,6 +1730,7 @@ const Suppliers = () => {
                   disabled={isSaving}
                   className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                 >
+
                   {isSaving && (
                     <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
                   )}
@@ -1577,6 +1738,7 @@ const Suppliers = () => {
                   {editingSupplier
                     ? 'Update Supplier'
                     : 'Add Supplier'}
+
                 </button>
 
               </div>
@@ -1584,6 +1746,7 @@ const Suppliers = () => {
             </form>
 
           </div>
+
         </div>
       )}
 
@@ -1597,6 +1760,7 @@ const Suppliers = () => {
           <div className="w-full max-w-3xl overflow-hidden rounded-2xl bg-white shadow-2xl">
 
             {/* Header */}
+
             <div className="border-b border-slate-200 bg-white px-6 py-5">
 
               <div className="flex items-start justify-between gap-4">
@@ -1604,7 +1768,7 @@ const Suppliers = () => {
                 <div className="flex items-center gap-4">
 
                   <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
-                    <FiBriefcase size={25} />
+                    <FiTruck size={25} />
                   </div>
 
                   <div>
@@ -1612,19 +1776,21 @@ const Suppliers = () => {
                     <div className="flex flex-wrap items-center gap-2">
 
                       <h2 className="text-xl font-bold text-slate-900">
-                        {viewingSupplier.name}
+                        {
+                          viewingSupplier.supplierName
+                        }
                       </h2>
 
                       <StatusBadge
-                        status={
-                          viewingSupplier.status
+                        isActive={
+                          viewingSupplier.isActive
                         }
                       />
 
                     </div>
 
                     <p className="mt-1 text-sm text-slate-500">
-                      {viewingSupplier.contactPerson}
+                      Supplier information
                     </p>
 
                   </div>
@@ -1632,9 +1798,14 @@ const Suppliers = () => {
                 </div>
 
                 <button
-                  onClick={() =>
-                    setViewingSupplier(null)
-                  }
+                  onClick={() => {
+                    setViewingSupplier(
+                      null
+                    );
+                    setSupplierPurchases(
+                      []
+                    );
+                  }}
                   className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
                 >
                   <FiX size={20} />
@@ -1645,46 +1816,43 @@ const Suppliers = () => {
             </div>
 
             {/* Details */}
+
             <div className="p-6">
 
               {/* Overview */}
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
 
                 <DetailStat
-                  icon={<FiShoppingBag />}
-                  label="Products"
+                  icon={<FiPhone />}
+                  label="Phone"
                   value={
-                    viewingSupplier.productsSupplied
+                    viewingSupplier.phone ||
+                    '—'
                   }
                 />
 
                 <DetailStat
-                  icon={<FiTruck />}
-                  label="Purchases"
+                  icon={<FiMail />}
+                  label="Email"
                   value={
-                    viewingSupplier.purchaseCount
+                    viewingSupplier.email ||
+                    'No email'
                   }
-                />
-
-                <DetailStat
-                  icon={<FiDollarSign />}
-                  label="Purchase Value"
-                  value={formatCurrency(
-                    viewingSupplier.totalPurchaseValue
-                  )}
                 />
 
                 <DetailStat
                   icon={<FiCalendar />}
-                  label="Last Purchase"
+                  label="Created"
                   value={formatDate(
-                    viewingSupplier.lastPurchase
+                    viewingSupplier.createdAt
                   )}
                 />
 
               </div>
 
               {/* Information */}
+
               <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2">
 
                 <div className="rounded-2xl border border-slate-200 p-5">
@@ -1696,10 +1864,10 @@ const Suppliers = () => {
                   <div className="mt-4 space-y-4">
 
                     <InfoRow
-                      icon={<FiUser />}
-                      label="Contact Person"
+                      icon={<FiTruck />}
+                      label="Supplier"
                       value={
-                        viewingSupplier.contactPerson
+                        viewingSupplier.supplierName
                       }
                     />
 
@@ -1707,7 +1875,8 @@ const Suppliers = () => {
                       icon={<FiPhone />}
                       label="Phone"
                       value={
-                        viewingSupplier.phone
+                        viewingSupplier.phone ||
+                        'No phone'
                       }
                     />
 
@@ -1727,7 +1896,7 @@ const Suppliers = () => {
                 <div className="rounded-2xl border border-slate-200 p-5">
 
                   <h3 className="font-semibold text-slate-900">
-                    Location
+                    Address
                   </h3>
 
                   <div className="mt-4 space-y-4">
@@ -1742,19 +1911,21 @@ const Suppliers = () => {
                     />
 
                     <InfoRow
-                      icon={<FiMapPin />}
-                      label="City"
+                      icon={<FiCheckCircle />}
+                      label="Status"
                       value={
-                        viewingSupplier.city
+                        viewingSupplier.isActive
+                          ? 'Active'
+                          : 'Inactive'
                       }
                     />
 
                     <InfoRow
-                      icon={<FiMapPin />}
-                      label="Country"
-                      value={
-                        viewingSupplier.country
-                      }
+                      icon={<FiCalendar />}
+                      label="Created"
+                      value={formatDate(
+                        viewingSupplier.createdAt
+                      )}
                     />
 
                   </div>
@@ -1763,26 +1934,78 @@ const Suppliers = () => {
 
               </div>
 
-              {/* Notes */}
-              {viewingSupplier.notes && (
-                <div className="mt-6 rounded-2xl border border-slate-200 p-5">
+              {/* Purchase History */}
 
-                  <h3 className="font-semibold text-slate-900">
-                    Notes
-                  </h3>
+              <div className="mt-6 rounded-2xl border border-slate-200 p-5">
 
-                  <p className="mt-3 text-sm leading-6 text-slate-600">
-                    {viewingSupplier.notes}
-                  </p>
+                <div className="flex items-center justify-between">
+
+                  <div>
+
+                    <h3 className="font-semibold text-slate-900">
+                      Purchase History
+                    </h3>
+
+                    <p className="mt-1 text-xs text-slate-500">
+                      Purchases recorded for this supplier.
+                    </p>
+
+                  </div>
+
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                    <FiShoppingBag
+                      size={17}
+                    />
+                  </div>
 
                 </div>
-              )}
+
+                {isLoadingPurchases ? (
+                  <div className="flex justify-center py-8">
+
+                    <div className="h-7 w-7 animate-spin rounded-full border-4 border-slate-200 border-t-blue-600" />
+
+                  </div>
+                ) : supplierPurchases.length === 0 ? (
+                  <div className="py-8 text-center">
+
+                    <FiShoppingBag
+                      size={24}
+                      className="mx-auto text-slate-300"
+                    />
+
+                    <p className="mt-2 text-sm text-slate-500">
+                      No purchase history found.
+                    </p>
+
+                  </div>
+                ) : (
+                  <div className="mt-4 space-y-3">
+
+                    {supplierPurchases.map(
+                      (purchase) => (
+                        <PurchaseRow
+                          key={
+                            purchase._id
+                          }
+                          purchase={
+                            purchase
+                          }
+                        />
+                      )
+                    )}
+
+                  </div>
+                )}
+
+              </div>
 
               {/* Footer */}
+
               <div className="mt-6 flex flex-col-reverse gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:justify-between">
 
                 <p className="text-xs text-slate-400">
-                  Supplier added{' '}
+                  Created{' '}
                   {formatDate(
                     viewingSupplier.createdAt
                   )}
@@ -1792,7 +2015,14 @@ const Suppliers = () => {
 
                   <button
                     onClick={() => {
-                      setViewingSupplier(null);
+                      setViewingSupplier(
+                        null
+                      );
+
+                      setSupplierPurchases(
+                        []
+                      );
+
                       handleOpenEdit(
                         viewingSupplier
                       );
@@ -1804,9 +2034,15 @@ const Suppliers = () => {
                   </button>
 
                   <button
-                    onClick={() =>
-                      setViewingSupplier(null)
-                    }
+                    onClick={() => {
+                      setViewingSupplier(
+                        null
+                      );
+
+                      setSupplierPurchases(
+                        []
+                      );
+                    }}
                     className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
                   >
                     Close
@@ -1819,6 +2055,7 @@ const Suppliers = () => {
             </div>
 
           </div>
+
         </div>
       )}
 
@@ -1844,37 +2081,32 @@ const Suppliers = () => {
               Are you sure you want to delete{' '}
 
               <span className="font-semibold text-slate-700">
-                {supplierToDelete.name}
+                {
+                  supplierToDelete.supplierName
+                }
               </span>
               ?
 
             </p>
 
-            {supplierToDelete.purchaseCount > 0 && (
-              <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3">
+            <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3">
 
-                <p className="text-sm leading-5 text-amber-800">
+              <p className="text-sm leading-5 text-amber-800">
 
-                  This supplier has{' '}
+                The backend will prevent deletion if this
+                supplier has products or purchase records.
 
-                  <strong>
-                    {supplierToDelete.purchaseCount}
-                  </strong>{' '}
+              </p>
 
-                  recorded purchases. For data integrity,
-                  suppliers with purchase history should
-                  normally be deactivated instead of deleted.
-
-                </p>
-
-              </div>
-            )}
+            </div>
 
             <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
 
               <button
                 onClick={() =>
-                  setSupplierToDelete(null)
+                  setSupplierToDelete(
+                    null
+                  )
                 }
                 className="rounded-xl border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
               >
@@ -1915,7 +2147,9 @@ const ActionMenu = ({
     <div className="absolute right-0 top-11 z-[70] w-48 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-xl">
 
       <button
-        onClick={() => onView(supplier)}
+        onClick={() =>
+          onView(supplier)
+        }
         className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50"
       >
         <FiEye size={16} />
@@ -1923,7 +2157,9 @@ const ActionMenu = ({
       </button>
 
       <button
-        onClick={() => onEdit(supplier)}
+        onClick={() =>
+          onEdit(supplier)
+        }
         className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50"
       >
         <FiEdit2 size={16} />
@@ -1931,12 +2167,14 @@ const ActionMenu = ({
       </button>
 
       <button
-        onClick={() => onToggle(supplier)}
+        onClick={() =>
+          onToggle(supplier)
+        }
         className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50"
       >
         <FiPower size={16} />
 
-        {supplier.status === 'active'
+        {supplier.isActive
           ? 'Deactivate'
           : 'Activate'}
       </button>
@@ -1944,7 +2182,9 @@ const ActionMenu = ({
       <div className="my-1 border-t border-slate-100" />
 
       <button
-        onClick={() => onDelete(supplier)}
+        onClick={() =>
+          onDelete(supplier)
+        }
         className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50"
       >
         <FiTrash2 size={16} />
@@ -1998,7 +2238,9 @@ const FormField = ({
 // INPUT CLASS
 // ============================================================
 
-const inputClass = (hasError = false) => {
+const inputClass = (
+  hasError = false
+) => {
   return `w-full rounded-xl border px-4 py-2.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 ${
     hasError
       ? 'border-red-400 focus:border-red-500 focus:ring-2 focus:ring-red-500/20'
@@ -2019,6 +2261,7 @@ const DetailStat = ({
     <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
 
       <div className="flex items-center gap-2 text-slate-400">
+
         {React.cloneElement(icon, {
           size: 15,
         })}
@@ -2026,9 +2269,10 @@ const DetailStat = ({
         <span className="text-xs font-medium">
           {label}
         </span>
+
       </div>
 
-      <p className="mt-2 truncate text-base font-bold text-slate-900">
+      <p className="mt-2 truncate text-sm font-bold text-slate-900">
         {value}
       </p>
 
@@ -2049,9 +2293,11 @@ const InfoRow = ({
     <div className="flex items-start gap-3">
 
       <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
+
         {React.cloneElement(icon, {
           size: 15,
         })}
+
       </div>
 
       <div className="min-w-0">
@@ -2067,6 +2313,119 @@ const InfoRow = ({
       </div>
 
     </div>
+  );
+};
+
+// ============================================================
+// PURCHASE ROW
+// ============================================================
+
+const PurchaseRow = ({
+  purchase,
+}) => {
+  const items =
+    purchase.items || [];
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+
+        <div>
+
+          <p className="text-sm font-semibold text-slate-900">
+            Purchase
+          </p>
+
+          <p className="mt-1 text-xs text-slate-500">
+            {purchase.createdAt
+              ? new Date(
+                  purchase.createdAt
+                ).toLocaleDateString(
+                  'en-US',
+                  {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                  }
+                )
+              : 'No date'}
+          </p>
+
+        </div>
+
+        <div className="text-left sm:text-right">
+
+          <p className="text-sm font-semibold text-slate-800">
+            {items.length}{' '}
+            {items.length === 1
+              ? 'item'
+              : 'items'}
+          </p>
+
+          {purchase.totalAmount !==
+            undefined && (
+            <p className="mt-1 text-xs text-slate-500">
+              Total:{' '}
+              {Number(
+                purchase.totalAmount
+              ).toLocaleString(
+                'en-US'
+              )}{' '}
+              ETB
+            </p>
+          )}
+
+        </div>
+
+      </div>
+
+      {items.length > 0 && (
+        <div className="mt-3 space-y-2 border-t border-slate-200 pt-3">
+
+          {items.map(
+            (item, index) => (
+              <div
+                key={
+                  item._id ||
+                  item.productId?._id ||
+                  index
+                }
+                className="flex items-center justify-between gap-3 text-xs"
+              >
+
+                <span className="min-w-0 truncate text-slate-600">
+
+                  {item.productId
+                    ?.productName ||
+                    'Product'}
+
+                </span>
+
+                <span className="shrink-0 font-medium text-slate-700">
+                  Qty:{' '}
+                  {item.quantity ??
+                    0}
+                </span>
+
+              </div>
+            )
+          )}
+
+        </div>
+      )}
+
+    </div>
+  );
+};
+
+// ============================================================
+// ICON HELPER
+// ============================================================
+
+const FiBriefcaseIcon = () => {
+  return (
+    <FiTruck size={19} />
   );
 };
 

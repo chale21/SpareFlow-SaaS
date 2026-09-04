@@ -84,8 +84,19 @@ const getEnvConfig = () => {
 
     enableLogging: process.env.ENABLE_LOGGING !== 'false',
 
-    enableRateLimit:
-      process.env.ENABLE_RATE_LIMIT !== 'false'
+   enableRateLimit: process.env.ENABLE_RATE_LIMIT !== 'false',
+
+rateLimitWindowMs: parseInt(
+  process.env.RATE_LIMIT_WINDOW_MS ||
+    15 * 60 * 1000,
+  10
+),
+
+rateLimitMax: parseInt(
+  process.env.RATE_LIMIT_MAX ||
+    (nodeEnv === 'development' ? 300 : 100),
+  10
+),
   };
 };
 
