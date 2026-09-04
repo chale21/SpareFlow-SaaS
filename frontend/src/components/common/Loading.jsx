@@ -1,30 +1,45 @@
 import React from 'react';
 
-const Loading = ({ size = 'md', text = '', fullScreen = false }) => {
-  const sizes = {
+/**
+ * Reusable Loading spinner component.
+ * Can be rendered full page, inside a card, or inline.
+ */
+const Loading = ({
+  fullPage = false,
+  text = 'Loading...',
+  size = 'md',
+  className = '',
+}) => {
+  const sizeStyles = {
     sm: 'w-5 h-5 border-2',
     md: 'w-8 h-8 border-3',
     lg: 'w-12 h-12 border-4',
   };
 
-  const spinner = (
-    <div className="flex flex-col items-center justify-center gap-2">
+  const spinnerClass = sizeStyles[size] || sizeStyles.md;
+
+  const content = (
+    <div className={`flex flex-col items-center justify-center gap-3 p-4 ${className}`}>
       <div
-        className={`${sizes[size]} border-blue-200 border-t-blue-600 rounded-full animate-spin`}
+        className={`${spinnerClass} border-blue-600 border-t-transparent rounded-full animate-spin`}
+        role="status"
+        aria-label="loading"
       />
-      {text && <p className="text-sm text-gray-500">{text}</p>}
+      {text && <p className="text-sm font-medium text-slate-600 animate-pulse">{text}</p>}
     </div>
   );
 
-  if (fullScreen) {
+  if (fullPage) {
     return (
-      <div className="fixed inset-0 bg-white bg-opacity-90 flex items-center justify-center z-50">
-        {spinner}
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/20 backdrop-blur-xs">
+        <div className="bg-white p-6 rounded-2xl shadow-xl border border-slate-100 flex flex-col items-center min-w-[200px]">
+          {content}
+        </div>
       </div>
     );
   }
 
-  return spinner;
+  return content;
 };
 
 export default Loading;

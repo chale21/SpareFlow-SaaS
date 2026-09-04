@@ -1,13 +1,13 @@
-const jwt = require('jsonwebtoken');
+const { verifyToken } = require('../utils/jwt');
 
 /**
- * Middleware to authenticate user using JWT token
+ * Authenticate user using JWT
  */
 const authenticateUser = (req, res, next) => {
   try {
-    // Get token from header
+    // Get token from Authorization header
     const authHeader = req.headers.authorization;
-    
+
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return res.status(401).json({
         success: false,
@@ -16,12 +16,12 @@ const authenticateUser = (req, res, next) => {
     }
 
     // Extract token
-    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+    const token = authHeader.substring(7);
 
     // Verify token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    
-    // Add user info to request object
+    const decoded = verifyToken(token);
+
+    // Add user information to request
     req.user = {
       id: decoded.id,
       email: decoded.email,
@@ -33,7 +33,7 @@ const authenticateUser = (req, res, next) => {
   } catch (error) {
     return res.status(401).json({
       success: false,
-      message: 'Invalid token.'
+      message: 'Invalid or expired token.'
     });
   }
 };
@@ -42,28 +42,28 @@ const authenticateUser = (req, res, next) => {
  * Middleware to check if user is Shop Owner
  */
 const isShopOwner = (req, res, next) => {
-  if (req.user && req.user.role === 'Owner') {
-    next();
-  } else {
-    return res.status(403).json({
-      success: false,
-      message: 'Access denied. Shop Owner role required.'
-    });
+  if (req.user && req.user.role === 'SHOP_OWNER') {
+    return next();
   }
+
+  return res.status(403).json({
+    success: false,
+    message: 'Access denied. Shop Owner role required.'
+  });
 };
 
 /**
  * Middleware to check if user is Super Admin
  */
 const isSuperAdmin = (req, res, next) => {
-  if (req.user && req.user.role === 'SuperAdmin') {
-    next();
-  } else {
-    return res.status(403).json({
-      success: false,
-      message: 'Access denied. Super Admin role required.'
-    });
+  if (req.user && req.user.role === 'SUPER_ADMIN') {
+    return next();
   }
+
+  return res.status(403).json({
+    success: false,
+    message: 'Access denied. Super Admin role required.'
+  });
 };
 
 module.exports = {

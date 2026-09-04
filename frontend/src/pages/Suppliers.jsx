@@ -5,7 +5,6 @@ import React, {
   useRef,
   useState,
 } from 'react';
-
 import {
   FiPlus,
   FiSearch,
@@ -1818,6 +1817,16 @@ const Suppliers = () => {
       )}
 
     </div>
+  );
+};
+
+// ============================================================
+// ICON HELPER
+// ============================================================
+
+const FiBriefcaseIcon = () => {
+  return (
+    <FiTruck size={19} />
   );
 };
 

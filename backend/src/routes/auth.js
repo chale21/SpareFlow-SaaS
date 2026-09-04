@@ -8,14 +8,19 @@
  * POST   /api/v1/auth/reset-password  - Reset password
  * GET    /api/v1/auth/profile         - Get user profile
  */
+
 const express = require('express');
 
 const router = express.Router();
 
 const { authenticateUser } = require('../middleware/auth');
 const { authRateLimiter } = require('../middleware/security');
-const { register, login } = require('../controllers/authController');
 
+
+const {
+  register,
+  login,
+} = require('../controllers/authController');
 
 // ============================================================
 // REGISTER

@@ -1,11 +1,4 @@
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
-
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   FiPlus,
   FiSearch,
@@ -19,22 +12,77 @@ import {
   FiCheckCircle,
   FiEye,
   FiPower,
+  FiCalendar,
   FiRefreshCw,
+  FiLayers,
 } from 'react-icons/fi';
-
-import { categoryService } from '../services/productService';
 
 const Categories = () => {
   // ============================================================
-  // STATE
+  // TEMPORARY DATA
+  // Replace later with categoryService.getCategories()
   // ============================================================
 
-  const [categories, setCategories] = useState([]);
+  const [categories, setCategories] = useState([
+    {
+      id: '1',
+      name: 'Engine Parts',
+      description: 'Engine components and replacement parts',
+      productCount: 24,
+      status: 'active',
+      createdAt: '2026-08-01',
+      updatedAt: '2026-08-10',
+    },
+    {
+      id: '2',
+      name: 'Brake System',
+      description: 'Brake pads, discs, calipers and related parts',
+      productCount: 18,
+      status: 'active',
+      createdAt: '2026-08-02',
+      updatedAt: '2026-08-09',
+    },
+    {
+      id: '3',
+      name: 'Electrical',
+      description: 'Electrical and electronic vehicle components',
+      productCount: 16,
+      status: 'active',
+      createdAt: '2026-08-03',
+      updatedAt: '2026-08-08',
+    },
+    {
+      id: '4',
+      name: 'Suspension',
+      description: 'Suspension and steering components',
+      productCount: 12,
+      status: 'active',
+      createdAt: '2026-08-04',
+      updatedAt: '2026-08-07',
+    },
+    {
+      id: '5',
+      name: 'Filters',
+      description: 'Oil, air, fuel and cabin filters',
+      productCount: 9,
+      status: 'inactive',
+      createdAt: '2026-08-05',
+      updatedAt: '2026-08-06',
+    },
+    {
+      id: '6',
+      name: 'Lubricants',
+      description: 'Engine oils, transmission fluids and lubricants',
+      productCount: 14,
+      status: 'active',
+      createdAt: '2026-08-06',
+      updatedAt: '2026-08-06',
+    },
+  ]);
 
-  const [loading, setLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-
-  const [error, setError] = useState('');
+  // ============================================================
+  // STATE
+  // ============================================================
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -42,22 +90,13 @@ const Categories = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
 
-  const [editingCategory, setEditingCategory] =
-    useState(null);
+  const [editingCategory, setEditingCategory] = useState(null);
+  const [viewingCategory, setViewingCategory] = useState(null);
 
-  const [viewingCategory, setViewingCategory] =
-    useState(null);
-
-  const [categoryToDelete, setCategoryToDelete] =
-    useState(null);
-
-  const [categoryToToggle, setCategoryToToggle] =
-    useState(null);
+  const [categoryToDelete, setCategoryToDelete] = useState(null);
+  const [categoryToToggle, setCategoryToToggle] = useState(null);
 
   const [openMenuId, setOpenMenuId] = useState(null);
-
-  const [notification, setNotification] =
-    useState(null);
 
   const [formData, setFormData] = useState({
     name: '',

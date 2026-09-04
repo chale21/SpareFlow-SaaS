@@ -1,39 +1,17 @@
 import React from 'react';
-
 import {
   BrowserRouter as Router,
   Routes,
   Route,
 } from 'react-router-dom';
 
-// ============================================================
-// AUTH
-// ============================================================
-
-import {
-  AuthProvider,
-} from './context/AuthContext';
-
-import ProtectedRoute from './components/auth/ProtectedRoute';
-
-// ============================================================
-// LAYOUT
-// ============================================================
-
-import MainLayout from './components/layout/MainLayout';
-
-// ============================================================
-// PUBLIC PAGES
-// ============================================================
-
+import { AuthProvider } from './context/AuthContext';
+// Public pages
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 
-// ============================================================
-// PROTECTED PAGES
-// ============================================================
-
+// Protected pages
 import Dashboard from './pages/Dashboard';
 
 import Inventory from './pages/Inventory';
@@ -47,70 +25,57 @@ import Suppliers from './pages/Suppliers';
 import Purchases from './pages/Purchases';
 
 import Sales from './pages/Sales';
-
+import SalesHistory from './pages/SalesHistory';
+import Invoice from './pages/Invoice';
 import Reports from './pages/Reports';
 
 import Notifications from './pages/Notifications';
 
 import Settings from './pages/Settings';
-
+import Notifications from './pages/Notifications';
 import CompanyManagement from './pages/CompanyManagement';
-
 import UserManagement from './pages/UserManagement';
 
-// ============================================================
-// APP
-// ============================================================
+// Layout
+import MainLayout from './components/layout/MainLayout';
+
+// Authentication
+import ProtectedRoute from './components/auth/ProtectedRoute';
 
 function App() {
 
   return (
-
     <AuthProvider>
-
       <Router>
-
         <Routes>
 
-          {/* ==================================================
+          {/* =====================================================
               PUBLIC ROUTES
-          ================================================== */}
+          ===================================================== */}
 
           <Route
             path="/"
-            element={
-              <LandingPage />
-            }
+            element={<LandingPage />}
           />
 
           <Route
             path="/login"
-            element={
-              <LoginPage />
-            }
+            element={<LoginPage />}
           />
 
           <Route
             path="/register"
-            element={
-              <RegisterPage />
-            }
+            element={<RegisterPage />}
           />
 
-          {/* ==================================================
+
+          {/* =====================================================
               PROTECTED ROUTES
-          ================================================== */}
+          ===================================================== */}
 
-          <Route
-            element={
-              <ProtectedRoute />
-            }
-          >
+          <Route element={<ProtectedRoute />}>
 
-            {/* =================================================
-                DASHBOARD
-            ================================================= */}
-
+            {/* Dashboard */}
             <Route
               path="/dashboard"
               element={
@@ -120,10 +85,7 @@ function App() {
               }
             />
 
-            {/* =================================================
-                INVENTORY
-            ================================================= */}
-
+            {/* Inventory */}
             <Route
               path="/inventory"
               element={
@@ -159,10 +121,7 @@ function App() {
               }
             />
 
-            {/* =================================================
-                SUPPLIERS
-            ================================================= */}
-
+            {/* Suppliers */}
             <Route
               path="/suppliers"
               element={
@@ -172,10 +131,7 @@ function App() {
               }
             />
 
-            {/* =================================================
-                PURCHASES
-            ================================================= */}
-
+            {/* Purchases */}
             <Route
               path="/purchases"
               element={
@@ -185,10 +141,7 @@ function App() {
               }
             />
 
-            {/* =================================================
-                SALES
-            ================================================= */}
-
+            {/* Sales */}
             <Route
               path="/sales"
               element={
@@ -198,10 +151,25 @@ function App() {
               }
             />
 
-            {/* =================================================
-                REPORTS
-            ================================================= */}
+            <Route
+              path="/sales/history"
+              element={
+                <MainLayout>
+                  <SalesHistory />
+                </MainLayout>
+              }
+            />
 
+            <Route
+              path="/sales/:id/invoice"
+              element={
+                <MainLayout>
+                  <Invoice />
+                </MainLayout>
+              }
+            />
+
+            {/* Reports */}
             <Route
               path="/reports"
               element={
@@ -211,10 +179,7 @@ function App() {
               }
             />
 
-            {/* =================================================
-                NOTIFICATIONS
-            ================================================= */}
-
+            {/* Notifications */}
             <Route
               path="/notifications"
               element={
@@ -224,10 +189,7 @@ function App() {
               }
             />
 
-            {/* =================================================
-                SETTINGS
-            ================================================= */}
-
+            {/* Settings */}
             <Route
               path="/settings"
               element={
@@ -237,10 +199,7 @@ function App() {
               }
             />
 
-            {/* =================================================
-                COMPANY MANAGEMENT
-            ================================================= */}
-
+            {/* Company Management */}
             <Route
               path="/company"
               element={
@@ -250,10 +209,7 @@ function App() {
               }
             />
 
-            {/* =================================================
-                USER MANAGEMENT
-            ================================================= */}
-
+            {/* User Management */}
             <Route
               path="/users"
               element={
@@ -266,9 +222,7 @@ function App() {
           </Route>
 
         </Routes>
-
       </Router>
-
     </AuthProvider>
   );
 }

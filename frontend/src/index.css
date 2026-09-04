@@ -13,3 +13,25 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+@media print {
+  .app-chrome,
+  .print-hidden {
+    display: none !important;
+  }
+
+  .app-shell,
+  .app-shell > div,
+  .app-shell main {
+    display: block !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+  }
+
+  .invoice-paper {
+    border: 0 !important;
+    box-shadow: none !important;
+    max-width: none !important;
+  }
+}

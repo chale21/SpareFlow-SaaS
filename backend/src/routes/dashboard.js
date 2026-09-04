@@ -1,14 +1,57 @@
-const express = require('express');
-const router = express.Router();
-const { authenticateUser } = require('../middleware/auth');
+const express =
+  require('express');
 
-// Dashboard statistics routes
-router.get('/stats', authenticateUser, (req, res) => {
-  res.status(200).json({ message: 'Dashboard statistics endpoint - To be implemented' });
-});
+const router =
+  express.Router();
 
-router.get('/recent-activities', authenticateUser, (req, res) => {
-  res.status(200).json({ message: 'Recent activities endpoint - To be implemented' });
-});
 
-module.exports = router;
+const {
+  authenticateUser
+} = require(
+  '../middleware/auth'
+);
+
+
+const {
+
+  getStats,
+
+  getRecentActivities
+
+} = require(
+  '../controllers/dashboardController'
+);
+
+
+// ============================================================
+// DASHBOARD STATISTICS
+// ============================================================
+
+router.get(
+
+  '/stats',
+
+  authenticateUser,
+
+  getStats
+
+);
+
+
+// ============================================================
+// RECENT ACTIVITIES
+// ============================================================
+
+router.get(
+
+  '/recent-activities',
+
+  authenticateUser,
+
+  getRecentActivities
+
+);
+
+
+module.exports =
+  router;

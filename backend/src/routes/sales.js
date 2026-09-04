@@ -1,22 +1,141 @@
 const express = require('express');
+
 const router = express.Router();
-const { authenticateUser } = require('../middleware/auth');
 
-// Sales management routes
-router.get('/', authenticateUser, (req, res) => {
-  res.status(200).json({ message: 'Get sales endpoint - To be implemented' });
-});
+const {
+  authenticateUser
+} = require('../middleware/auth');
 
-router.post('/', authenticateUser, (req, res) => {
-  res.status(200).json({ message: 'Create sale endpoint - To be implemented' });
-});
 
-router.get('/:id/invoice', authenticateUser, (req, res) => {
-  res.status(200).json({ message: 'Generate invoice endpoint - To be implemented' });
-});
+const {
 
-router.get('/history', authenticateUser, (req, res) => {
-  res.status(200).json({ message: 'Sales history endpoint - To be implemented' });
-});
+  createSale,
 
-module.exports = router;
+  getSales,
+
+  getSalesHistory,
+
+  getInvoice,
+
+  getSalesSummary,
+
+  getDailySales,
+
+  getMonthlySales,
+
+  getTopProducts
+
+} = require(
+  '../controllers/salesController'
+);
+
+
+// ============================================================
+// SALES ANALYTICS
+// ============================================================
+
+router.get(
+
+  '/analytics/summary',
+
+  authenticateUser,
+
+  getSalesSummary
+
+);
+
+
+router.get(
+
+  '/analytics/daily',
+
+  authenticateUser,
+
+  getDailySales
+
+);
+
+
+router.get(
+
+  '/analytics/monthly',
+
+  authenticateUser,
+
+  getMonthlySales
+
+);
+
+
+router.get(
+
+  '/analytics/top-products',
+
+  authenticateUser,
+
+  getTopProducts
+
+);
+
+
+// ============================================================
+// SALES HISTORY
+// ============================================================
+
+router.get(
+
+  '/history',
+
+  authenticateUser,
+
+  getSalesHistory
+
+);
+
+
+// ============================================================
+// GET ALL SALES
+// ============================================================
+
+router.get(
+
+  '/',
+
+  authenticateUser,
+
+  getSales
+
+);
+
+
+// ============================================================
+// CREATE SALE
+// ============================================================
+
+router.post(
+
+  '/',
+
+  authenticateUser,
+
+  createSale
+
+);
+
+
+// ============================================================
+// GET INVOICE
+// ============================================================
+
+router.get(
+
+  '/:id/invoice',
+
+  authenticateUser,
+
+  getInvoice
+
+);
+
+module.exports =
+  router;

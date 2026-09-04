@@ -1,26 +1,21 @@
 const express = require('express');
 const router = express.Router();
 const { authenticateUser } = require('../middleware/auth');
+const { filterByCompany } = require('../middleware/tenant');
+const { isShopOwner, isCompanyUser } = require('../middleware/role');
+const { validateAddSupplier, validateUpdateSupplier, validateMongoId } = require('../middleware/validate');
+const supplierController = require('../controllers/supplierController');
 
 // Supplier management routes
-router.get('/', authenticateUser, (req, res) => {
-  res.status(200).json({ message: 'Get suppliers endpoint - To be implemented' });
-});
+router.use(authenticateUser, filterByCompany);
+router.get('/', isCompanyUser, supplierController.list);
 
-router.post('/', authenticateUser, (req, res) => {
-  res.status(200).json({ message: 'Add supplier endpoint - To be implemented' });
-});
+router.post('/', isShopOwner, validateAddSupplier, supplierController.create);
 
-router.put('/:id', authenticateUser, (req, res) => {
-  res.status(200).json({ message: 'Update supplier endpoint - To be implemented' });
-});
+router.put('/:id', isShopOwner, validateUpdateSupplier, supplierController.update);
 
-router.delete('/:id', authenticateUser, (req, res) => {
-  res.status(200).json({ message: 'Delete supplier endpoint - To be implemented' });
-});
+router.delete('/:id', isShopOwner, validateMongoId(), supplierController.remove);
 
-router.get('/:id/purchases', authenticateUser, (req, res) => {
-  res.status(200).json({ message: 'Supplier purchase history endpoint - To be implemented' });
-});
+router.get('/:id/purchases', isCompanyUser, validateMongoId(), supplierController.purchases);
 
 module.exports = router;
