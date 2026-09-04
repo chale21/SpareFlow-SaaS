@@ -1,47 +1,76 @@
+/**
+ * Authentication Routes
+ * 
+ * POST   /api/v1/auth/register        - Register new company
+ * POST   /api/v1/auth/login           - Login user
+ * POST   /api/v1/auth/logout          - Logout user
+ * POST   /api/v1/auth/forgot-password - Request password reset
+ * POST   /api/v1/auth/reset-password  - Reset password
+ * GET    /api/v1/auth/profile         - Get user profile
+ */
 const express = require('express');
+
 const router = express.Router();
+
 const { authenticateUser } = require('../middleware/auth');
+const { authRateLimiter } = require('../middleware/security');
+const { register, login } = require('../controllers/authController');
 
-// @route   POST /api/v1/auth/register
-// @desc    Register new company
-// @access  Public
-router.post('/register', (req, res) => {
-  res.status(200).json({ message: 'Register endpoint - To be implemented' });
-});
 
-// @route   POST /api/v1/auth/login
-// @desc    Login user
-// @access  Public
-router.post('/login', (req, res) => {
-  res.status(200).json({ message: 'Login endpoint - To be implemented' });
-});
+// ============================================================
+// REGISTER
+// POST /api/v1/auth/register
+// Public
+// ============================================================
 
-// @route   POST /api/v1/auth/logout
-// @desc    Logout user
-// @access  Private
-router.post('/logout', authenticateUser, (req, res) => {
-  res.status(200).json({ message: 'Logout endpoint - To be implemented' });
-});
+router.post('/register', register);
 
-// @route   POST /api/v1/auth/forgot-password
-// @desc    Request password reset
-// @access  Public
-router.post('/forgot-password', (req, res) => {
-  res.status(200).json({ message: 'Forgot password endpoint - To be implemented' });
-});
 
-// @route   POST /api/v1/auth/reset-password
-// @desc    Reset password
-// @access  Public
-router.post('/reset-password', (req, res) => {
-  res.status(200).json({ message: 'Reset password endpoint - To be implemented' });
-});
+// ============================================================
+// LOGIN
+// POST /api/v1/auth/login
+// Public
+// ============================================================
 
-// @route   GET /api/v1/auth/profile
-// @desc    Get logged-in user profile
-// @access  Private
-router.get('/profile', authenticateUser, (req, res) => {
-  res.status(200).json({ message: 'Profile endpoint - To be implemented' });
-});
+router.post('/login', login);
+
+
+// ============================================================
+// LOGOUT
+// POST /api/v1/auth/logout
+// Private
+// ============================================================
+
+router.post(
+    '/logout',
+    authenticateUser,
+    (req, res) => {
+        return res.status(200).json({
+            success: true,
+            message: 'Logout successful'
+        });
+    }
+);
+
+
+// ============================================================
+// PROFILE
+// GET /api/v1/auth/profile
+// Private
+// ============================================================
+
+router.get(
+    '/profile',
+    authenticateUser,
+    (req, res) => {
+        return res.status(200).json({
+            success: true,
+            data: {
+                user: req.user
+            }
+        });
+    }
+);
+
 
 module.exports = router;
