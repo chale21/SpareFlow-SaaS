@@ -18,6 +18,8 @@ import Categories from './pages/Categories';
 import Suppliers from './pages/Suppliers';
 import Purchases from './pages/Purchases';
 import Sales from './pages/Sales';
+import SalesHistory from './pages/SalesHistory';
+import Invoice from './pages/Invoice';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
 import Notifications from './pages/Notifications';
@@ -118,6 +120,24 @@ function App() {
               element={
                 <MainLayout>
                   <Sales />
+                </MainLayout>
+              }
+            />
+
+            <Route
+              path="/sales/history"
+              element={
+                <MainLayout>
+                  <SalesHistory />
+                </MainLayout>
+              }
+            />
+
+            <Route
+              path="/sales/:id/invoice"
+              element={
+                <MainLayout>
+                  <Invoice />
                 </MainLayout>
               }
             />

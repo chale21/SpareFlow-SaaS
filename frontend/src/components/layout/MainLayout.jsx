@@ -28,25 +28,34 @@ const navigationItems = getNavigationForRole(
   };
 
   const currentPage =
-    pageTitles[location.pathname] || 'Dashboard';
+    pageTitles[location.pathname] ||
+    (location.pathname === '/sales/history'
+      ? 'Sales History'
+      : location.pathname.startsWith('/sales/')
+        ? 'Invoice'
+        : 'Dashboard');
 
   return (
-    <div className="min-h-screen bg-slate-50 flex">
+    <div className="app-shell min-h-screen bg-slate-50 flex">
 
       {/* Reusable Sidebar */}
+      <div className="app-chrome">
       <Sidebar
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />
+      </div>
 
       {/* Main Content Area */}
       <div className="flex-1 min-w-0 flex flex-col">
 
         {/* Reusable Navbar */}
+        <div className="app-chrome">
         <Navbar
           pageTitle={currentPage}
           onMenuClick={() => setSidebarOpen(true)}
         />
+        </div>
 
         {/* Page Content */}
         <main className="flex-1 p-4 sm:p-6 lg:p-8">
