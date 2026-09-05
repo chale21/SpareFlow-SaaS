@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState,useCallback} from 'react';
 import {
   FiPlus,
   FiSearch,
@@ -16,6 +16,7 @@ import {
   FiRefreshCw,
   FiLayers,
 } from 'react-icons/fi';
+import categoryService from '../services/categoryService';
 
 const Categories = () => {
   // ============================================================
@@ -105,6 +106,11 @@ const Categories = () => {
 
   const [errors, setErrors] = useState({});
 
+  const [loading, setLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const [notification, setNotification] = useState(null);
   const menuRef = useRef(null);
 
   // ============================================================
@@ -154,10 +160,9 @@ const Categories = () => {
     setError('');
 
     try {
-      const data = await categoryService.list();
-
-      const normalized = Array.isArray(data)
-        ? data.map(normalizeCategory)
+const response = await categoryService.getCategories();
+      const normalized = Array.isArray(response.data)
+        ? response.data.map(normalizeCategory)
         : [];
 
       setCategories(normalized);
@@ -422,7 +427,7 @@ const Categories = () => {
       };
 
       if (editingCategory) {
-        await categoryService.update(
+        await categoryService.updateCategory(
           editingCategory.id,
           payload
         );
@@ -432,7 +437,7 @@ const Categories = () => {
           'Category updated successfully.'
         );
       } else {
-        await categoryService.create(
+        await categoryService.createCategory(
           payload
         );
 
@@ -481,7 +486,7 @@ const Categories = () => {
     setIsSaving(true);
 
     try {
-      await categoryService.remove(
+      await categoryService.deleteCategory(
         categoryToDelete.id
       );
 
@@ -530,7 +535,7 @@ const Categories = () => {
     setIsSaving(true);
 
     try {
-      await categoryService.update(
+      await categoryService.updateCategory(
         categoryToToggle.id,
         {
           categoryName:
