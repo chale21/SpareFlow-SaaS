@@ -19,67 +19,8 @@ import {
 import categoryService from '../services/categoryService';
 
 const Categories = () => {
-  // ============================================================
-  // TEMPORARY DATA
-  // Replace later with categoryService.getCategories()
-  // ============================================================
-
-  const [categories, setCategories] = useState([
-    {
-      id: '1',
-      name: 'Engine Parts',
-      description: 'Engine components and replacement parts',
-      productCount: 24,
-      status: 'active',
-      createdAt: '2026-08-01',
-      updatedAt: '2026-08-10',
-    },
-    {
-      id: '2',
-      name: 'Brake System',
-      description: 'Brake pads, discs, calipers and related parts',
-      productCount: 18,
-      status: 'active',
-      createdAt: '2026-08-02',
-      updatedAt: '2026-08-09',
-    },
-    {
-      id: '3',
-      name: 'Electrical',
-      description: 'Electrical and electronic vehicle components',
-      productCount: 16,
-      status: 'active',
-      createdAt: '2026-08-03',
-      updatedAt: '2026-08-08',
-    },
-    {
-      id: '4',
-      name: 'Suspension',
-      description: 'Suspension and steering components',
-      productCount: 12,
-      status: 'active',
-      createdAt: '2026-08-04',
-      updatedAt: '2026-08-07',
-    },
-    {
-      id: '5',
-      name: 'Filters',
-      description: 'Oil, air, fuel and cabin filters',
-      productCount: 9,
-      status: 'inactive',
-      createdAt: '2026-08-05',
-      updatedAt: '2026-08-06',
-    },
-    {
-      id: '6',
-      name: 'Lubricants',
-      description: 'Engine oils, transmission fluids and lubricants',
-      productCount: 14,
-      status: 'active',
-      createdAt: '2026-08-06',
-      updatedAt: '2026-08-06',
-    },
-  ]);
+  const [categories, setCategories] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   // ============================================================
   // STATE
@@ -194,10 +135,11 @@ const response = await categoryService.getCategories();
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (
-        menuRef.current &&
-        !menuRef.current.contains(event.target)
-      ) {
+      const clickedInsideActionMenu = event.target.closest(
+        '[data-category-action-menu]'
+      );
+
+      if (!clickedInsideActionMenu) {
         setOpenMenuId(null);
       }
     };
@@ -208,10 +150,7 @@ const response = await categoryService.getCategories();
     );
 
     return () => {
-      document.removeEventListener(
-        'mousedown',
-        handleClickOutside
-      );
+      document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
 
@@ -779,7 +718,7 @@ const response = await categoryService.getCategories();
 
         {/* MAIN CARD */}
 
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
 
           {/* TOOLBAR */}
 

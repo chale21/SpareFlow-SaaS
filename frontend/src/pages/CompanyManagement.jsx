@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   FiBriefcase,
   FiMail,
@@ -20,39 +20,43 @@ import {
   FiRotateCcw,
   FiChevronDown,
 } from 'react-icons/fi';
+import companyService from '../services/companyService';
+import useAuth from '../hooks/useAuth';
 
 const CompanyManagement = () => {
-  // ============================================================
-  // TEMPORARY COMPANY DATA
-  // ============================================================
-
+  const { user } = useAuth();
   const [company, setCompany] = useState({
-    id: '68a1f2e4c9b8a1234567890a',
-    companyName: 'Apex Auto Spare Parts',
-    email: 'info@apexspares.com',
-    phone: '+251 9XX XXX XXX',
-    address: 'Bahir Dar, Ethiopia',
-
-    // Mock logo data
-    logo: null,
-
-    subscriptionPlan: 'Basic',
-    status: 'Active',
-    createdAt: '2026-08-01',
-    updatedAt: '2026-08-20',
-
-    owner: {
-      name: 'John Doe',
-      email: 'john.doe@apexspares.com',
-      role: 'SHOP OWNER',
-
-      // Owner profile image
-      avatar: null,
-    },
+    _id: '',
+    name: '',
+    contactEmail: '',
+    contactPhone: '',
+    address: '',
+    status: '',
+    subscriptionPlan: '',
+    createdAt: null,
+    updatedAt: null,
+    owner: { name: user?.fullName || user?.name || '', email: user?.email || '', role: user?.role || '', avatar: null },
   });
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+
+  useEffect(() => {
+    const loadCompany = async () => {
+      try {
+        const response = await companyService.getProfile();
+        const profile = response?.data;
+        setCompany({ ...profile, companyName: profile?.name || '', email: profile?.contactEmail || '', phone: profile?.contactPhone || '', logo: null, owner: { name: user?.fullName || user?.name || '', email: user?.email || '', role: user?.role || '', avatar: null } });
+      } catch (error) {
+        setLoadError(error?.response?.data?.message || 'Unable to load company profile.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadCompany();
+  }, [user]);
 
   // ============================================================
-  // MOCK LOGO UPLOAD
+  // Company logo upload
   // ============================================================
 
   const logoInputRef = useRef(null);
@@ -84,21 +88,7 @@ const CompanyManagement = () => {
       return;
     }
 
-    // Mock upload using local object URL
-    const logoUrl = URL.createObjectURL(file);
-
-    setCompany((previous) => ({
-      ...previous,
-      logo: logoUrl,
-      updatedAt: new Date()
-        .toISOString()
-        .split('T')[0],
-    }));
-
-    showNotification(
-      'success',
-      'Company logo uploaded successfully.'
-    );
+    showNotification('error', 'Company logo uploads are not supported by the backend.');
 
     // Allow selecting the same file again
     event.target.value = '';
@@ -139,26 +129,7 @@ const CompanyManagement = () => {
       return;
     }
 
-    // Mock upload using local object URL
-    const avatarUrl = URL.createObjectURL(file);
-
-    setCompany((previous) => ({
-      ...previous,
-
-      owner: {
-        ...previous.owner,
-        avatar: avatarUrl,
-      },
-
-      updatedAt: new Date()
-        .toISOString()
-        .split('T')[0],
-    }));
-
-    showNotification(
-      'success',
-      'Owner image uploaded successfully.'
-    );
+    showNotification('error', 'Owner image uploads are not supported by the backend.');
 
     // Allow selecting the same file again
     event.target.value = '';
@@ -337,24 +308,21 @@ const CompanyManagement = () => {
       setTimeout(resolve, 700)
     );
 
-    setCompany((previous) => ({
-      ...previous,
-      companyName: formData.companyName.trim(),
-      email: formData.email.trim(),
-      phone: formData.phone.trim(),
-      address: formData.address.trim(),
-      updatedAt: new Date()
-        .toISOString()
-        .split('T')[0],
-    }));
-
-    setIsSaving(false);
-    setIsEditModalOpen(false);
-
-    showNotification(
-      'success',
-      'Company information updated successfully.'
-    );
+    try {
+      const response = await companyService.updateProfile({
+        name: formData.companyName.trim(),
+        contactPhone: formData.phone.trim(),
+        address: formData.address.trim(),
+      });
+      const profile = response?.data;
+      setCompany((previous) => ({ ...previous, ...profile, companyName: profile?.name || formData.companyName.trim(), email: profile?.contactEmail || formData.email.trim(), phone: profile?.contactPhone || formData.phone.trim() }));
+      setIsEditModalOpen(false);
+      showNotification('success', 'Company information updated successfully.');
+    } catch (saveError) {
+      showNotification('error', saveError?.response?.data?.message || 'Unable to update company profile.');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // ============================================================
@@ -447,27 +415,8 @@ const CompanyManagement = () => {
       setTimeout(resolve, 700)
     );
 
-    const updatedSettings = {
-      ...settingsForm,
-      lowStockThreshold: Number(
-        settingsForm.lowStockThreshold
-      ),
-      taxRate: Number(settingsForm.taxRate),
-      invoicePrefix:
-        settingsForm.invoicePrefix
-          .trim()
-          .toUpperCase(),
-    };
-
-    setSettings(updatedSettings);
-    setSettingsForm(updatedSettings);
-
     setIsSavingSettings(false);
-
-    showNotification(
-      'success',
-      'Business settings saved successfully.'
-    );
+    showNotification('error', 'Business settings are not supported by the backend.');
   };
 
   const handleResetSettings = () => {

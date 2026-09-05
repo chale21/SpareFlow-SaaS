@@ -3,7 +3,7 @@ const { AppError } = require('../middleware/errorHandler');
 
 const sanitizeUser = (user) => ({
   id: user._id,
-  fullName: user.fullName,
+  fullName: user.fullName || user.name,
   email: user.email,
   role: user.role,
   phone: user.phone,
@@ -25,6 +25,7 @@ const createStaff = async (companyId, data) => {
 
   const user = await User.create({
     companyId,
+    name: data.fullName,
     fullName: data.fullName,
     email,
     password: data.password,
@@ -44,7 +45,11 @@ const updateStaff = async (companyId, userId, data) => {
     user.email = data.email.toLowerCase();
   }
 
-  ['fullName', 'phone', 'role', 'isActive'].forEach((field) => {
+  if (data.fullName !== undefined) {
+    user.name = data.fullName;
+    user.fullName = data.fullName;
+  }
+  ['phone', 'role', 'isActive'].forEach((field) => {
     if (data[field] !== undefined) user[field] = data[field];
   });
   await user.save();

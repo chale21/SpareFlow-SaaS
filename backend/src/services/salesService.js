@@ -323,7 +323,7 @@ const getSalesHistory = async (
   companyId
 ) => {
 
-  return Sale.find({
+  const sales = await Sale.find({
 
     companyId,
 
@@ -345,6 +345,18 @@ const getSalesHistory = async (
     .sort({
       saleDate: -1
     });
+
+  return sales.map((sale) => {
+    const data = sale.toObject();
+
+    data.items = data.items.map((item) => ({
+      ...item,
+      productCode: item.product?.productCode,
+      product: item.product?.productName || item.product
+    }));
+
+    return data;
+  });
 
 };
 

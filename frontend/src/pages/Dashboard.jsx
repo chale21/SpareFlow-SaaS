@@ -10,7 +10,13 @@ import salesService from '../services/salesService';
 
 ChartJS.register(ArcElement, BarElement, CategoryScale, Filler, Legend, LinearScale, LineElement, PointElement, Tooltip);
 
-const unwrap = (response) => response?.data ?? [];
+const unwrap = (response) => {
+  if (Array.isArray(response)) {
+    return response;
+  }
+
+  return response?.data ?? [];
+};
 const asArray = (value) => (Array.isArray(value) ? value : []);
 const number = (value) => Number(value || 0);
 const money = (value) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'ETB', maximumFractionDigits: 0 }).format(number(value));

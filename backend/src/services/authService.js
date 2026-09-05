@@ -44,6 +44,7 @@ const register = async ({ companyName, ownerName, email, password }) => {
   try {
     const user = await User.create({
       companyId: company._id,
+      name: ownerName,
       fullName: ownerName,
       email: normalizedEmail,
       password,
