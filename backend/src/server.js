@@ -217,10 +217,15 @@ const gracefulShutdown = () => {
     logger.info('Server closed');
     
     // Close database connection
-    mongoose.connection.close(false, () => {
-      logger.info('MongoDB connection closed');
-      process.exit(0);
-    });
+    mongoose.connection.close(false)
+      .then(() => {
+        logger.info('MongoDB connection closed');
+        process.exit(0);
+      })
+      .catch((error) => {
+        logger.error('Error closing MongoDB connection', error);
+        process.exit(1);
+      });
 
     // Force exit if graceful shutdown takes too long
     setTimeout(() => {

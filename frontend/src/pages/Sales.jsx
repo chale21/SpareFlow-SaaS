@@ -30,7 +30,13 @@ const paymentMethods = [
 // HELPERS
 // ============================================================
 
-const unwrap = (response) => response?.data ?? [];
+const unwrap = (response) => {
+  if (Array.isArray(response)) {
+    return response;
+  }
+
+  return response?.data ?? [];
+};
 
 const productId = (product) => product?._id || product?.id;
 

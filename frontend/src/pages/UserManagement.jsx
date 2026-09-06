@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   FiAlertCircle,
   FiBriefcase,
@@ -22,117 +22,15 @@ import {
   FiUsers,
   FiX,
 } from 'react-icons/fi';
+import userService from '../services/userService';
+import useAuth from '../hooks/useAuth';
 
 const UserManagement = () => {
-  // ============================================================
-  // MOCK COMPANY
-  // ============================================================
+  const { user: currentUser } = useAuth();
+  const company = { id: currentUser?.companyId, name: currentUser?.companyName || 'Your company' };
 
-  const company = {
-    id: '68a1f2e4c9b8a1234567890a',
-    name: 'Apex Auto Spare Parts',
-  };
-
-  // ============================================================
-  // MOCK USER DATA
-  //
-  // The SRS Users collection contains:
-  // _id, companyId, fullName, email, password, role,
-  // phone, status, createdAt
-  //
-  // Password is intentionally NOT represented in UI data.
-  // ============================================================
-
-  const [users, setUsers] = useState([
-    {
-      id: 'USR-001',
-      companyId: company.id,
-      fullName: 'John Doe',
-      email: 'john.doe@apexspares.com',
-      role: 'Shop Owner',
-      phone: '+251 911 234 567',
-      status: 'Active',
-      createdAt: '2026-08-01',
-      lastActivity: '2026-08-22T09:42:00',
-    },
-    {
-      id: 'USR-002',
-      companyId: company.id,
-      fullName: 'Abebe Kebede',
-      email: 'abebe.kebede@apexspares.com',
-      role: 'Staff',
-      phone: '+251 922 456 789',
-      status: 'Active',
-      createdAt: '2026-08-04',
-      lastActivity: '2026-08-22T08:25:00',
-    },
-    {
-      id: 'USR-003',
-      companyId: company.id,
-      fullName: 'Hana Worku',
-      email: 'hana.worku@apexspares.com',
-      role: 'Staff',
-      phone: '+251 933 567 890',
-      status: 'Active',
-      createdAt: '2026-08-07',
-      lastActivity: '2026-08-21T16:40:00',
-    },
-    {
-      id: 'USR-004',
-      companyId: company.id,
-      fullName: 'Dawit Alemu',
-      email: 'dawit.alemu@apexspares.com',
-      role: 'Staff',
-      phone: '+251 944 678 901',
-      status: 'Inactive',
-      createdAt: '2026-08-09',
-      lastActivity: '2026-08-18T11:20:00',
-    },
-    {
-      id: 'USR-005',
-      companyId: company.id,
-      fullName: 'Meron Tesfaye',
-      email: 'meron.tesfaye@apexspares.com',
-      role: 'Staff',
-      phone: '+251 955 789 012',
-      status: 'Active',
-      createdAt: '2026-08-11',
-      lastActivity: '2026-08-22T07:58:00',
-    },
-    {
-      id: 'USR-006',
-      companyId: company.id,
-      fullName: 'Samuel Bekele',
-      email: 'samuel.bekele@apexspares.com',
-      role: 'Staff',
-      phone: '+251 966 890 123',
-      status: 'Active',
-      createdAt: '2026-08-12',
-      lastActivity: '2026-08-21T14:15:00',
-    },
-    {
-      id: 'USR-007',
-      companyId: company.id,
-      fullName: 'Rahel Girma',
-      email: 'rahel.girma@apexspares.com',
-      role: 'Staff',
-      phone: '+251 977 901 234',
-      status: 'Active',
-      createdAt: '2026-08-15',
-      lastActivity: '2026-08-22T08:11:00',
-    },
-    {
-      id: 'USR-008',
-      companyId: company.id,
-      fullName: 'Mekonnen Tadesse',
-      email: 'mekonnen.tadesse@apexspares.com',
-      role: 'Staff',
-      phone: '+251 988 012 345',
-      status: 'Active',
-      createdAt: '2026-08-18',
-      lastActivity: '2026-08-20T17:05:00',
-    },
-  ]);
+  const [users, setUsers] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   // ============================================================
   // UI STATE
@@ -165,9 +63,30 @@ const UserManagement = () => {
     email: '',
     role: 'Staff',
     phone: '',
+    password: '',
   };
 
   const [formData, setFormData] = useState(emptyForm);
+
+  const loadUsers = async () => {
+    setIsLoading(true);
+    try {
+      const response = await userService.getUsers();
+      const data = response?.data || [];
+      setUsers(Array.isArray(data) ? data.map((item) => ({
+        ...item,
+        id: item.id || item._id,
+        role: item.role === 'SHOP_OWNER' ? 'Shop Owner' : item.role === 'SUPER_ADMIN' ? 'Super Admin' : 'Staff',
+        status: item.isActive === false || item.status === 'INACTIVE' ? 'Inactive' : 'Active',
+      })) : []);
+    } catch (loadError) {
+      showNotification('error', loadError?.response?.data?.message || 'Unable to load staff members.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => { loadUsers(); }, []);
 
   // ============================================================
   // NOTIFICATION
@@ -355,6 +274,15 @@ const UserManagement = () => {
       errors.role = 'Role is required.';
     }
 
+    if (modalType === 'add' && formData.password.length < 6) {
+      errors.password = 'Password must be at least 6 characters.';
+    } else if (
+      modalType === 'add' &&
+      !/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(formData.password)
+    ) {
+      errors.password = 'Password must contain uppercase, lowercase, and number.';
+    }
+
     // SRS requires duplicate email handling.
     const duplicateEmail = users.some((user) => {
       const isSameUser =
@@ -447,63 +375,32 @@ const UserManagement = () => {
 
     setIsSubmitting(true);
 
-    await new Promise((resolve) =>
-      setTimeout(resolve, 700)
-    );
-
-    if (modalType === 'add') {
-      const newUser = {
-        id: `USR-${String(
-          users.length + 1
-        ).padStart(3, '0')}`,
-        companyId: company.id,
-        fullName: formData.fullName.trim(),
-        email: formData.email.trim(),
-        role: formData.role,
-        phone: formData.phone.trim(),
-        status: 'Active',
-        createdAt:
-          new Date().toISOString().split('T')[0],
-        lastActivity: new Date().toISOString(),
-      };
-
-      setUsers((previous) => [
-        newUser,
-        ...previous,
-      ]);
+    try {
+      if (modalType === 'add') {
+        await userService.createUser({ fullName: formData.fullName.trim(), email: formData.email.trim(), role: 'STAFF', phone: formData.phone.trim(), password: formData.password });
 
       showNotification(
         'success',
         'Staff member added successfully.'
       );
-    }
+      }
 
-    if (modalType === 'edit') {
-      setUsers((previous) =>
-        previous.map((user) =>
-          user.id === selectedUser.id
-            ? {
-                ...user,
-                fullName:
-                  formData.fullName.trim(),
-                email:
-                  formData.email.trim(),
-                role: formData.role,
-                phone:
-                  formData.phone.trim(),
-              }
-            : user
-        )
-      );
+      if (modalType === 'edit') {
+        await userService.updateUser(selectedUser.id, { fullName: formData.fullName.trim(), email: formData.email.trim(), role: 'STAFF', phone: formData.phone.trim() });
 
       showNotification(
         'success',
         'Employee information updated successfully.'
       );
-    }
+      }
 
-    setIsSubmitting(false);
-    closeModal();
+      await loadUsers();
+      closeModal();
+    } catch (saveError) {
+      showNotification('error', saveError?.response?.data?.message || 'Unable to save staff member.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // ============================================================
@@ -525,25 +422,13 @@ const UserManagement = () => {
 
     setIsSubmitting(true);
 
-    await new Promise((resolve) =>
-      setTimeout(resolve, 600)
-    );
-
     const nextStatus =
       selectedUser.status === 'Active'
         ? 'Inactive'
         : 'Active';
 
-    setUsers((previous) =>
-      previous.map((user) =>
-        user.id === selectedUser.id
-          ? {
-              ...user,
-              status: nextStatus,
-            }
-          : user
-      )
-    );
+    await userService.updateUser(selectedUser.id, { isActive: nextStatus === 'Active' });
+    await loadUsers();
 
     showNotification(
       'success',
@@ -571,15 +456,8 @@ const UserManagement = () => {
 
     setIsSubmitting(true);
 
-    await new Promise((resolve) =>
-      setTimeout(resolve, 600)
-    );
-
-    setUsers((previous) =>
-      previous.filter(
-        (user) => user.id !== selectedUser.id
-      )
-    );
+    await userService.deleteUser(selectedUser.id);
+    await loadUsers();
 
     showNotification(
       'success',
@@ -1180,6 +1058,20 @@ const UserManagement = () => {
                 placeholder="+251 9XX XXX XXX"
                 icon={<FiBriefcase size={16} />}
               />
+
+              {modalType === 'add' && (
+                <InputField
+                  label="Temporary Password"
+                  name="password"
+                  type="password"
+                  value={formData.password}
+                  onChange={handleFormChange}
+                  placeholder="At least 6 characters"
+                  error={formErrors.password}
+                  required
+                  icon={<FiShield size={16} />}
+                />
+              )}
 
               {/* Role */}
 

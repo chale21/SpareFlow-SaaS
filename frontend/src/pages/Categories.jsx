@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState,useCallback} from 'react';
 import {
   FiPlus,
   FiSearch,
@@ -16,69 +16,11 @@ import {
   FiRefreshCw,
   FiLayers,
 } from 'react-icons/fi';
+import categoryService from '../services/categoryService';
 
 const Categories = () => {
-  // ============================================================
-  // TEMPORARY DATA
-  // Replace later with categoryService.getCategories()
-  // ============================================================
-
-  const [categories, setCategories] = useState([
-    {
-      id: '1',
-      name: 'Engine Parts',
-      description: 'Engine components and replacement parts',
-      productCount: 24,
-      status: 'active',
-      createdAt: '2026-08-01',
-      updatedAt: '2026-08-10',
-    },
-    {
-      id: '2',
-      name: 'Brake System',
-      description: 'Brake pads, discs, calipers and related parts',
-      productCount: 18,
-      status: 'active',
-      createdAt: '2026-08-02',
-      updatedAt: '2026-08-09',
-    },
-    {
-      id: '3',
-      name: 'Electrical',
-      description: 'Electrical and electronic vehicle components',
-      productCount: 16,
-      status: 'active',
-      createdAt: '2026-08-03',
-      updatedAt: '2026-08-08',
-    },
-    {
-      id: '4',
-      name: 'Suspension',
-      description: 'Suspension and steering components',
-      productCount: 12,
-      status: 'active',
-      createdAt: '2026-08-04',
-      updatedAt: '2026-08-07',
-    },
-    {
-      id: '5',
-      name: 'Filters',
-      description: 'Oil, air, fuel and cabin filters',
-      productCount: 9,
-      status: 'inactive',
-      createdAt: '2026-08-05',
-      updatedAt: '2026-08-06',
-    },
-    {
-      id: '6',
-      name: 'Lubricants',
-      description: 'Engine oils, transmission fluids and lubricants',
-      productCount: 14,
-      status: 'active',
-      createdAt: '2026-08-06',
-      updatedAt: '2026-08-06',
-    },
-  ]);
+  const [categories, setCategories] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   // ============================================================
   // STATE
@@ -105,6 +47,11 @@ const Categories = () => {
 
   const [errors, setErrors] = useState({});
 
+  const [loading, setLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const [notification, setNotification] = useState(null);
   const menuRef = useRef(null);
 
   // ============================================================
@@ -154,10 +101,9 @@ const Categories = () => {
     setError('');
 
     try {
-      const data = await categoryService.list();
-
-      const normalized = Array.isArray(data)
-        ? data.map(normalizeCategory)
+const response = await categoryService.getCategories();
+      const normalized = Array.isArray(response.data)
+        ? response.data.map(normalizeCategory)
         : [];
 
       setCategories(normalized);
@@ -189,10 +135,11 @@ const Categories = () => {
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (
-        menuRef.current &&
-        !menuRef.current.contains(event.target)
-      ) {
+      const clickedInsideActionMenu = event.target.closest(
+        '[data-category-action-menu]'
+      );
+
+      if (!clickedInsideActionMenu) {
         setOpenMenuId(null);
       }
     };
@@ -203,10 +150,7 @@ const Categories = () => {
     );
 
     return () => {
-      document.removeEventListener(
-        'mousedown',
-        handleClickOutside
-      );
+      document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
 
@@ -422,7 +366,7 @@ const Categories = () => {
       };
 
       if (editingCategory) {
-        await categoryService.update(
+        await categoryService.updateCategory(
           editingCategory.id,
           payload
         );
@@ -432,7 +376,7 @@ const Categories = () => {
           'Category updated successfully.'
         );
       } else {
-        await categoryService.create(
+        await categoryService.createCategory(
           payload
         );
 
@@ -481,7 +425,7 @@ const Categories = () => {
     setIsSaving(true);
 
     try {
-      await categoryService.remove(
+      await categoryService.deleteCategory(
         categoryToDelete.id
       );
 
@@ -530,7 +474,7 @@ const Categories = () => {
     setIsSaving(true);
 
     try {
-      await categoryService.update(
+      await categoryService.updateCategory(
         categoryToToggle.id,
         {
           categoryName:
@@ -774,7 +718,7 @@ const Categories = () => {
 
         {/* MAIN CARD */}
 
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
 
           {/* TOOLBAR */}
 

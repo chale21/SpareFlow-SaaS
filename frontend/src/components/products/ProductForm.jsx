@@ -108,7 +108,7 @@ const isActive = (item) => {
     return false;
   }
 
-  return item.isActive === true;
+  return item.isActive !== false;
 };
 
 // ============================================================
