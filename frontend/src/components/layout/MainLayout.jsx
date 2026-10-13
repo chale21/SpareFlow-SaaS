@@ -25,6 +25,8 @@ const navigationItems = getNavigationForRole(
     '/sales': 'Sales',
     '/reports': 'Reports',
     '/settings': 'Settings',
+    '/notifications': 'Notifications',
+    '/admin/companies': 'Companies',
   };
 
   const currentPage =

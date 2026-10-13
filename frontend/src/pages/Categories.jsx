@@ -17,8 +17,14 @@ import {
   FiLayers,
 } from 'react-icons/fi';
 import categoryService from '../services/categoryService';
+import usePermissions from '../hooks/usePermissions';
 
 const Categories = () => {
+  const {
+    canCreateCategories,
+    canUpdateCategories,
+    canDeleteCategories,
+  } = usePermissions();
   const [categories, setCategories] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -635,13 +641,15 @@ const response = await categoryService.getCategories();
               Refresh
             </button>
 
-            <button
-              onClick={handleOpenCreate}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-blue-700"
-            >
-              <FiPlus size={18} />
-              Add Category
-            </button>
+            {canCreateCategories && (
+              <button
+                onClick={handleOpenCreate}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-blue-700"
+              >
+                <FiPlus size={18} />
+                Add Category
+              </button>
+            )}
           </div>
         </div>
 
@@ -802,7 +810,7 @@ const response = await categoryService.getCategories();
                   : 'Try changing your search or status filter.'}
               </p>
 
-              {categories.length === 0 && (
+              {categories.length === 0 && canCreateCategories && (
                 <button
                   onClick={handleOpenCreate}
                   className="mt-5 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
@@ -946,47 +954,36 @@ const response = await categoryService.getCategories();
                                   View Details
                                 </button>
 
-                                <button
-                                  onClick={() =>
-                                    handleOpenEdit(
-                                      category
-                                    )
-                                  }
-                                  className="flex w-full items-center gap-3 px-4 py-2.5 text-sm hover:bg-slate-50"
-                                >
-                                  <FiEdit2 />
-                                  Edit Category
-                                </button>
-
-                                <button
-                                  onClick={() =>
-                                    handleToggleStatus(
-                                      category
-                                    )
-                                  }
-                                  className="flex w-full items-center gap-3 px-4 py-2.5 text-sm hover:bg-slate-50"
-                                >
-                                  <FiPower />
-
-                                  {category.status ===
-                                  'active'
-                                    ? 'Deactivate'
-                                    : 'Activate'}
-                                </button>
-
-                                <div className="my-1 border-t" />
-
-                                <button
-                                  onClick={() =>
-                                    handleDelete(
-                                      category
-                                    )
-                                  }
-                                  className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50"
-                                >
-                                  <FiTrash2 />
-                                  Delete Category
-                                </button>
+                                {canUpdateCategories && (
+                                  <>
+                                    <button
+                                      onClick={() => handleOpenEdit(category)}
+                                      className="flex w-full items-center gap-3 px-4 py-2.5 text-sm hover:bg-slate-50"
+                                    >
+                                      <FiEdit2 />
+                                      Edit Category
+                                    </button>
+                                    <button
+                                      onClick={() => handleToggleStatus(category)}
+                                      className="flex w-full items-center gap-3 px-4 py-2.5 text-sm hover:bg-slate-50"
+                                    >
+                                      <FiPower />
+                                      {category.status === 'active' ? 'Deactivate' : 'Activate'}
+                                    </button>
+                                  </>
+                                )}
+                                {canDeleteCategories && (
+                                  <>
+                                    <div className="my-1 border-t" />
+                                    <button
+                                      onClick={() => handleDelete(category)}
+                                      className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50"
+                                    >
+                                      <FiTrash2 />
+                                      Delete Category
+                                    </button>
+                                  </>
+                                )}
 
                               </div>
                             )}

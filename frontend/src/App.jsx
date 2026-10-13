@@ -34,12 +34,15 @@ import Settings from './pages/Settings';
 import Notifications from './pages/Notifications';
 import CompanyManagement from './pages/CompanyManagement';
 import UserManagement from './pages/UserManagement';
+import AdminCompanies from './pages/admin/Companies';
+import StockMovements from './pages/StockMovements';
 
 // Layout
 import MainLayout from './components/layout/MainLayout';
 
 // Authentication
 import ProtectedRoute from './components/auth/ProtectedRoute';
+import PermissionRoute from './components/auth/PermissionRoute';
 
 function App() {
 
@@ -79,7 +82,7 @@ function App() {
               path="/dashboard"
               element={
                 <MainLayout>
-                  <Dashboard />
+                  <PermissionRoute permission="dashboard.view"><Dashboard /></PermissionRoute>
                 </MainLayout>
               }
             />
@@ -89,7 +92,7 @@ function App() {
               path="/inventory"
               element={
                 <MainLayout>
-                  <Inventory />
+                  <PermissionRoute anyPermission={['inventory.view', 'products.view']}><Inventory /></PermissionRoute>
                 </MainLayout>
               }
             />
@@ -102,7 +105,16 @@ function App() {
               path="/inventory/:id"
               element={
                 <MainLayout>
-                  <ProductDetails />
+                  <PermissionRoute anyPermission={['inventory.view', 'products.view']}><ProductDetails /></PermissionRoute>
+                </MainLayout>
+              }
+            />
+
+            <Route
+              path="/stock-movements"
+              element={
+                <MainLayout>
+                  <PermissionRoute permission="stockMovements.view"><StockMovements /></PermissionRoute>
                 </MainLayout>
               }
             />
@@ -115,7 +127,7 @@ function App() {
               path="/categories"
               element={
                 <MainLayout>
-                  <Categories />
+                  <PermissionRoute permission="categories.view"><Categories /></PermissionRoute>
                 </MainLayout>
               }
             />
@@ -125,7 +137,7 @@ function App() {
               path="/suppliers"
               element={
                 <MainLayout>
-                  <Suppliers />
+                  <PermissionRoute permission="suppliers.view"><Suppliers /></PermissionRoute>
                 </MainLayout>
               }
             />
@@ -135,7 +147,7 @@ function App() {
               path="/purchases"
               element={
                 <MainLayout>
-                  <Purchases />
+                  <PermissionRoute permission="purchases.view"><Purchases /></PermissionRoute>
                 </MainLayout>
               }
             />
@@ -145,7 +157,7 @@ function App() {
               path="/sales"
               element={
                 <MainLayout>
-                  <Sales />
+                  <PermissionRoute anyPermission={['sales.view', 'sales.create']}><Sales /></PermissionRoute>
                 </MainLayout>
               }
             />
@@ -154,7 +166,7 @@ function App() {
               path="/sales/history"
               element={
                 <MainLayout>
-                  <SalesHistory />
+                  <PermissionRoute permission="sales.view"><SalesHistory /></PermissionRoute>
                 </MainLayout>
               }
             />
@@ -163,7 +175,7 @@ function App() {
               path="/sales/:id/invoice"
               element={
                 <MainLayout>
-                  <Invoice />
+                  <PermissionRoute permission="sales.view"><Invoice /></PermissionRoute>
                 </MainLayout>
               }
             />
@@ -173,7 +185,7 @@ function App() {
               path="/reports"
               element={
                 <MainLayout>
-                  <Reports />
+                  <PermissionRoute permission="reports.view"><Reports /></PermissionRoute>
                 </MainLayout>
               }
             />
@@ -183,7 +195,16 @@ function App() {
               path="/notifications"
               element={
                 <MainLayout>
-                  <Notifications />
+                  <PermissionRoute permission="notifications.view"><Notifications /></PermissionRoute>
+                </MainLayout>
+              }
+            />
+
+            <Route
+              path="/admin/companies"
+              element={
+                <MainLayout>
+                  <PermissionRoute role="SUPER_ADMIN"><AdminCompanies /></PermissionRoute>
                 </MainLayout>
               }
             />
@@ -193,7 +214,7 @@ function App() {
               path="/settings"
               element={
                 <MainLayout>
-                  <Settings />
+                  <PermissionRoute roles={['SHOP_OWNER', 'SUPER_ADMIN']}><Settings /></PermissionRoute>
                 </MainLayout>
               }
             />
@@ -203,7 +224,7 @@ function App() {
               path="/company"
               element={
                 <MainLayout>
-                  <CompanyManagement />
+                  <PermissionRoute roles={['SHOP_OWNER', 'SUPER_ADMIN']}><CompanyManagement /></PermissionRoute>
                 </MainLayout>
               }
             />
@@ -213,7 +234,7 @@ function App() {
               path="/users"
               element={
                 <MainLayout>
-                  <UserManagement />
+                  <PermissionRoute permission="staff.view"><UserManagement /></PermissionRoute>
                 </MainLayout>
               }
             />

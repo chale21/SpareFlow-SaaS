@@ -3,6 +3,7 @@ const Product = require('../models/Product');
 const Purchase = require('../models/Purchase');
 const StockMovement = require('../models/StockMovement');
 const { AppError } = require('../middleware/errorHandler');
+const { notifyPurchaseCreated, notifyPurchaseCompleted } = require('./notificationService');
 
 const list = (companyId, status) => {
   const query = { companyId };
@@ -29,7 +30,16 @@ const create = async (companyId, userId, data) => {
     lineTotal: Number(item.quantity) * Number(item.costPrice)
   }));
   const totalAmount = items.reduce((total, item) => total + item.lineTotal, 0);
-  return Purchase.create({ companyId, supplierId: data.supplierId, items, totalAmount, notes: data.notes, createdBy: userId });
+  const purchase = await Purchase.create({
+    companyId,
+    supplierId: data.supplierId,
+    items,
+    totalAmount,
+    notes: data.notes,
+    createdBy: userId
+  });
+  await notifyPurchaseCreated(companyId, purchase);
+  return purchase;
 };
 
 const receive = async (companyId, purchaseId, userId) => {
@@ -67,6 +77,7 @@ const receive = async (companyId, purchaseId, userId) => {
   purchase.status = 'RECEIVED';
   purchase.receivedAt = new Date();
   await purchase.save();
+  await notifyPurchaseCompleted(companyId, purchase);
   return Purchase.findById(purchase._id)
     .populate('supplierId', 'supplierName')
     .populate('items.productId', 'productName productCode quantity');

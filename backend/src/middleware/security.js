@@ -11,7 +11,7 @@ const createSecurityMiddleware = (config) => {
       credentials: true,
       optionsSuccessStatus: 200,
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization', 'X-Company-ID']
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Company-ID', 'cache-control', 'pragma']
     }));
   }
 

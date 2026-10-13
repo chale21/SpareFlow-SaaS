@@ -18,7 +18,7 @@ import {
 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 
-import useAuth from '../hooks/useAuth';
+import usePermissions from '../hooks/usePermissions';
 
 import Button from '../components/common/Button';
 import Loading from '../components/common/Loading';
@@ -126,7 +126,20 @@ const normalizeList = (value) => {
 const Inventory = () => {
   const navigate = useNavigate();
 
-  const { isShopOwner } = useAuth();
+  const {
+    canViewCategories,
+    canViewSuppliers,
+    canCreateProducts,
+    canCreateInventory,
+    canUpdateProducts,
+    canDeleteProducts,
+    canAdjustInventory,
+  } = usePermissions();
+  const canCreateCatalogItem =
+    canCreateProducts &&
+    canCreateInventory &&
+    canViewCategories &&
+    canViewSuppliers;
 
   // ============================================================
   // STATE
@@ -214,6 +227,13 @@ const Inventory = () => {
   // ============================================================
 
   const loadReferences = useCallback(async () => {
+    if (!canViewCategories || !canViewSuppliers) {
+      setCategories([]);
+      setSuppliers([]);
+      setReferenceError('');
+      setReferencesLoading(false);
+      return;
+    }
     setReferencesLoading(true);
     setReferenceError('');
 
@@ -287,7 +307,7 @@ const Inventory = () => {
     } finally {
       setReferencesLoading(false);
     }
-  }, []);
+  }, [canViewCategories, canViewSuppliers]);
 
   // ============================================================
   // INITIAL LOAD
@@ -433,9 +453,11 @@ const Inventory = () => {
           payload
         );
       } else if (modal?.type === 'edit') {
+        const updatePayload = { ...payload };
+        if (!canAdjustInventory) delete updatePayload.quantity;
         await productService.updateProduct(
           modal.id,
-          payload
+          updatePayload
         );
       }
 
@@ -554,7 +576,7 @@ const Inventory = () => {
             Refresh
           </Button>
 
-          {isShopOwner && (
+          {canCreateCatalogItem && (
             <Button onClick={openCreate}>
               <FiPlus className="mr-2" />
 
@@ -753,7 +775,7 @@ const Inventory = () => {
               first product.
             </p>
 
-            {isShopOwner && (
+            {canCreateCatalogItem && (
               <Button
                 className="mt-5"
                 onClick={openCreate}
@@ -897,18 +919,16 @@ const Inventory = () => {
                               <FiEye />
                             </IconButton>
 
-                            <IconButton
-                              title="Edit product"
-                              onClick={() =>
-                                openEdit(
-                                  product
-                                )
-                              }
-                            >
-                              <FiEdit2 />
-                            </IconButton>
+                            {canUpdateProducts && (
+                              <IconButton
+                                title="Edit product"
+                                onClick={() => openEdit(product)}
+                              >
+                                <FiEdit2 />
+                              </IconButton>
+                            )}
 
-                            {isShopOwner && (
+                            {canDeleteProducts && (
                               <IconButton
                                 title="Delete product"
                                 danger
@@ -972,6 +992,7 @@ const Inventory = () => {
             categories={categories}
             suppliers={suppliers}
             onSubmit={submitProduct}
+            allowQuantityEdit={modal.type === 'create' || canAdjustInventory}
             onCancel={() =>
               !formLoading &&
               setModal(null)

@@ -3,6 +3,7 @@ const Supplier = require('../models/Supplier');
 const Product = require('../models/Product');
 const StockMovement = require('../models/StockMovement');
 const { AppError } = require('../middleware/errorHandler');
+const { notifyStockThresholds } = require('./notificationService');
 
 const productQuery = (companyId, filters = {}) => {
   const query = { companyId, isActive: true };
@@ -40,7 +41,7 @@ const get = async (companyId, productId) => {
 
 const create = async (companyId, data) => {
   await ensureReferences(companyId, data.categoryId, data.supplierId);
-  return Product.create({
+  const product = await Product.create({
     companyId,
     productName: data.productName,
     categoryId: data.categoryId,
@@ -52,6 +53,14 @@ const create = async (companyId, data) => {
     maximumStock: data.maximumStock,
     supplierId: data.supplierId
   });
+  await notifyStockThresholds({
+    companyId,
+    product,
+    previousQuantity: null,
+    previousMinimumStock: null,
+    eventId: 'created'
+  });
+  return product;
 };
 
 const update = async (companyId, productId, data, userId) => {
@@ -62,6 +71,7 @@ const update = async (companyId, productId, data, userId) => {
   }
 
   const previousQuantity = product.quantity;
+  const previousMinimumStock = product.minimumStock;
   ['productName', 'categoryId', 'productCode', 'purchasePrice', 'sellingPrice', 'minimumStock', 'maximumStock'].forEach((field) => {
     if (data[field] !== undefined) product[field] = data[field];
   });
@@ -69,7 +79,7 @@ const update = async (companyId, productId, data, userId) => {
   await product.save();
 
   if (data.quantity !== undefined && data.quantity !== previousQuantity) {
-    await StockMovement.create({
+    const movement = await StockMovement.create({
       companyId,
       productId: product._id,
       type: 'ADJUSTMENT',
@@ -78,6 +88,21 @@ const update = async (companyId, productId, data, userId) => {
       newQuantity: data.quantity,
       createdBy: userId,
       notes: 'Manual inventory adjustment'
+    });
+    await notifyStockThresholds({
+      companyId,
+      product,
+      previousQuantity,
+      previousMinimumStock,
+      eventId: movement._id.toString()
+    });
+  } else if (data.minimumStock !== undefined && data.minimumStock !== previousMinimumStock) {
+    await notifyStockThresholds({
+      companyId,
+      product,
+      previousQuantity,
+      previousMinimumStock,
+      eventId: `threshold-${product.updatedAt.getTime()}`
     });
   }
   return get(companyId, productId);

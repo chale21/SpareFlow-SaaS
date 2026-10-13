@@ -8,12 +8,18 @@ const listStaff = catchAsync(async (req, res) => {
 });
 
 const createStaff = catchAsync(async (req, res) => {
-  const user = await userService.createStaff(req.companyId, req.body);
+  const user = await userService.createStaff(req.companyId, {
+    ...req.body,
+    canManagePermissions: ['SHOP_OWNER', 'SUPER_ADMIN'].includes(req.user.role)
+  });
   sendCreated(res, 'Staff member created successfully', user);
 });
 
 const updateStaff = catchAsync(async (req, res) => {
-  const user = await userService.updateStaff(req.companyId, req.params.id, req.body);
+  const user = await userService.updateStaff(req.companyId, req.params.id, {
+    ...req.body,
+    canManagePermissions: ['SHOP_OWNER', 'SUPER_ADMIN'].includes(req.user.role)
+  });
   sendSuccess(res, 'Staff member updated successfully', user);
 });
 

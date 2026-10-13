@@ -14,6 +14,7 @@ import { Link } from 'react-router-dom';
 
 import productService from '../services/productService';
 import salesService from '../services/salesService';
+import usePermissions from '../hooks/usePermissions';
 
 // ============================================================
 // CONSTANTS
@@ -62,6 +63,7 @@ const messageFromError = (
 // ============================================================
 
 const Sales = () => {
+  const { canCreateSales } = usePermissions();
   // ----------------------------------------------------------
   // STATE
   // ----------------------------------------------------------
@@ -87,6 +89,7 @@ const Sales = () => {
   // ----------------------------------------------------------
 
   const loadProducts = async ({ silent = false } = {}) => {
+    if (!canCreateSales) return;
     if (silent) {
       setRefreshing(true);
     } else {
@@ -330,6 +333,16 @@ const Sales = () => {
         const stock = amount(
           item.product.quantity
         );
+
+        if (!canCreateSales) {
+          return (
+            <section className="mx-auto max-w-2xl rounded-2xl border border-amber-200 bg-amber-50 p-8 text-center">
+              <h1 className="text-lg font-semibold text-slate-900">Sale creation is restricted</h1>
+              <p className="mt-2 text-sm text-slate-600">Your account can view sales but cannot create a sale.</p>
+              <Link className="mt-5 inline-flex rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white" to="/sales/history">View sales history</Link>
+            </section>
+          );
+        }
 
         return (
           item.quantity < 1 ||

@@ -24,9 +24,18 @@ import {
 } from 'react-icons/fi';
 import userService from '../services/userService';
 import useAuth from '../hooks/useAuth';
+import usePermissions from '../hooks/usePermissions';
+import { PERMISSION_GROUPS } from '../config/permissions';
 
 const UserManagement = () => {
   const { user: currentUser } = useAuth();
+  const {
+    canCreateStaff,
+    canUpdateStaff,
+    canDeleteStaff,
+    canActivateStaff,
+    canManagePermissions,
+  } = usePermissions();
   const company = { id: currentUser?.companyId, name: currentUser?.companyName || 'Your company' };
 
   const [users, setUsers] = useState([]);
@@ -64,6 +73,7 @@ const UserManagement = () => {
     role: 'Staff',
     phone: '',
     password: '',
+    permissions: [],
   };
 
   const [formData, setFormData] = useState(emptyForm);
@@ -348,6 +358,7 @@ const UserManagement = () => {
           ? 'Staff'
           : 'Staff',
       phone: user.phone || '',
+      permissions: user.permissions || [],
     });
 
     setFormErrors({});
@@ -363,49 +374,6 @@ const UserManagement = () => {
     setSelectedUser(user);
     setModalType('view');
   };
-
-  // ============================================================
-  // SUBMIT ADD / EDIT
-  // ============================================================
-
-  const handleSubmitUser = async (event) => {
-    event.preventDefault();
-
-    if (!validateForm()) return;
-
-    setIsSubmitting(true);
-
-    try {
-      if (modalType === 'add') {
-        await userService.createUser({ fullName: formData.fullName.trim(), email: formData.email.trim(), role: 'STAFF', phone: formData.phone.trim(), password: formData.password });
-
-      showNotification(
-        'success',
-        'Staff member added successfully.'
-      );
-      }
-
-      if (modalType === 'edit') {
-        await userService.updateUser(selectedUser.id, { fullName: formData.fullName.trim(), email: formData.email.trim(), role: 'STAFF', phone: formData.phone.trim() });
-
-      showNotification(
-        'success',
-        'Employee information updated successfully.'
-      );
-      }
-
-      await loadUsers();
-      closeModal();
-    } catch (saveError) {
-      showNotification('error', saveError?.response?.data?.message || 'Unable to save staff member.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  // ============================================================
-  // ACTIVATE / DEACTIVATE
-  // ============================================================
 
   const openStatusConfirmation = (user) => {
     setActiveMenu(null);
@@ -427,18 +395,22 @@ const UserManagement = () => {
         ? 'Inactive'
         : 'Active';
 
-    await userService.updateUser(selectedUser.id, { isActive: nextStatus === 'Active' });
-    await loadUsers();
-
-    showNotification(
-      'success',
-      nextStatus === 'Active'
-        ? `${selectedUser.fullName} has been activated.`
-        : `${selectedUser.fullName} has been deactivated.`
-    );
-
-    setIsSubmitting(false);
-    closeModal();
+    try {
+      await userService.updateUser(selectedUser.id, { isActive: nextStatus === 'Active' });
+      await loadUsers();
+      showNotification(
+        'success',
+        nextStatus === 'Active'
+          ? `${selectedUser.fullName} has been activated.`
+          : `${selectedUser.fullName} has been deactivated.`
+      );
+      setModalType(null);
+      setSelectedUser(null);
+    } catch (error) {
+      showNotification('error', error?.response?.data?.message || 'Unable to update account status.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // ============================================================
@@ -455,17 +427,53 @@ const UserManagement = () => {
     if (!selectedUser) return;
 
     setIsSubmitting(true);
+    try {
+      await userService.deleteUser(selectedUser.id);
+      await loadUsers();
+      showNotification('success', `${selectedUser.fullName} was removed from staff.`);
+      setModalType(null);
+      setSelectedUser(null);
+    } catch (error) {
+      showNotification('error', error?.response?.data?.message || 'Unable to remove staff member.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
-    await userService.deleteUser(selectedUser.id);
-    await loadUsers();
+  const handleSubmitUser = async (event) => {
+    event.preventDefault();
+    if (!validateForm()) return;
 
-    showNotification(
-      'success',
-      `${selectedUser.fullName} was removed from staff.`
-    );
+    setIsSubmitting(true);
+    const payload = {
+      fullName: formData.fullName.trim(),
+      email: formData.email.trim(),
+      phone: formData.phone.trim(),
+    };
 
-    setIsSubmitting(false);
-    closeModal();
+    if (modalType === 'add') {
+      payload.role = 'STAFF';
+      payload.password = formData.password;
+    }
+    if (canManagePermissions) payload.permissions = formData.permissions;
+
+    try {
+      if (modalType === 'add') {
+        await userService.createUser(payload);
+        showNotification('success', 'Staff member created successfully.');
+      } else if (modalType === 'edit' && selectedUser) {
+        await userService.updateUser(selectedUser.id, payload);
+        showNotification('success', 'Staff member updated successfully.');
+      }
+
+      await loadUsers();
+      setModalType(null);
+      setSelectedUser(null);
+    } catch (error) {
+      showNotification('error', error?.response?.data?.message || 'Unable to save staff member.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // ============================================================
@@ -571,14 +579,14 @@ const UserManagement = () => {
             </p>
           </div>
 
-          <button
+          {canCreateStaff && <button
             type="button"
             onClick={handleAddUser}
             className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white shadow-sm shadow-blue-200 transition hover:bg-blue-700 hover:shadow-md"
           >
             <FiPlus size={17} />
             Add Staff
-          </button>
+          </button>}
         </div>
 
         {/* ======================================================
@@ -1131,6 +1139,70 @@ const UserManagement = () => {
                 </div>
               </div>
 
+              {/* Permissions */}
+              {canManagePermissions && <div>
+                <div className="mb-3 flex items-center justify-between">
+                  <label className="block text-sm font-semibold text-slate-700">
+                    Permissions
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const allPermissions = Object.values(PERMISSION_GROUPS).flatMap(g => g.permissions.map(p => p.key));
+                        setFormData(prev => ({ ...prev, permissions: allPermissions }));
+                      }}
+                      className="text-xs font-medium text-blue-600 hover:text-blue-700"
+                    >
+                      Select All
+                    </button>
+                    <span className="text-slate-300">|</span>
+                    <button
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, permissions: [] }))}
+                      className="text-xs font-medium text-slate-500 hover:text-slate-700"
+                    >
+                      Clear All
+                    </button>
+                  </div>
+                </div>
+
+                <div className="max-h-64 space-y-3 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  {Object.entries(PERMISSION_GROUPS).map(([groupKey, group]) => (
+                    <div key={groupKey}>
+                      <p className="mb-2 text-xs font-bold text-slate-600">{group.label}</p>
+                      <div className="space-y-1.5">
+                        {group.permissions.map((permission) => (
+                          <label key={permission.key} className="flex items-center gap-2 text-sm">
+                            <input
+                              type="checkbox"
+                              name="permissions"
+                              value={permission.key}
+                              checked={formData.permissions.includes(permission.key)}
+                              onChange={(e) => {
+                                const { value, checked } = e.target;
+                                setFormData(prev => ({
+                                  ...prev,
+                                  permissions: checked
+                                    ? [...prev.permissions, value]
+                                    : prev.permissions.filter(p => p !== value)
+                                }));
+                              }}
+                              className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            <span className="text-slate-700">{permission.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-2 text-xs text-slate-500">
+                  {formData.permissions.length} permission(s) selected
+                </div>
+              </div>}
+
               {/* Actions */}
 
               <div className="flex flex-col-reverse gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:justify-end">
@@ -1285,7 +1357,7 @@ const UserManagement = () => {
                 {/* Actions */}
 
                 <div className="grid grid-cols-2 gap-3 border-t border-slate-100 pt-5">
-                  <button
+                  {canUpdateStaff && <button
                     type="button"
                     onClick={() =>
                       handleEditUser(
@@ -1296,9 +1368,9 @@ const UserManagement = () => {
                   >
                     <FiEdit2 size={14} />
                     Edit
-                  </button>
+                  </button>}
 
-                  <button
+                  {canActivateStaff && <button
                     type="button"
                     onClick={() =>
                       openStatusConfirmation(
@@ -1323,7 +1395,7 @@ const UserManagement = () => {
                     'Active'
                       ? 'Deactivate'
                       : 'Activate'}
-                  </button>
+                  </button>}
                 </div>
               </div>
             </div>
@@ -1709,6 +1781,12 @@ const ActionMenu = ({
   onStatus,
   onRemove,
 }) => {
+  const {
+    canUpdateStaff,
+    canDeleteStaff,
+    canActivateStaff,
+  } = usePermissions();
+
   return (
     <div
       onClick={(event) =>
@@ -1734,6 +1812,7 @@ const ActionMenu = ({
 
       {!isOwner && (
         <>
+          {canUpdateStaff && (
           <button
             type="button"
             onClick={() => onEdit(user)}
@@ -1745,7 +1824,9 @@ const ActionMenu = ({
             />
             Edit Staff
           </button>
+          )}
 
+          {canActivateStaff && (
           <button
             type="button"
             onClick={() => onStatus(user)}
@@ -1765,9 +1846,10 @@ const ActionMenu = ({
               ? 'Deactivate'
               : 'Activate'}
           </button>
+          )}
 
-          <div className="my-1 border-t border-slate-100" />
-
+          {canDeleteStaff && <div className="my-1 border-t border-slate-100" />}
+          {canDeleteStaff && (
           <button
             type="button"
             onClick={() => onRemove(user)}
@@ -1776,6 +1858,7 @@ const ActionMenu = ({
             <FiTrash2 size={15} />
             Remove Staff
           </button>
+          )}
         </>
       )}
     </div>

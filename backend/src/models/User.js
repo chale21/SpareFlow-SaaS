@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
+const { validatePermissions } = require('../config/permissions');
 
 const userSchema = new mongoose.Schema(
   {
@@ -88,6 +89,30 @@ const userSchema = new mongoose.Schema(
     avatar: {
       type: String,
       default: ''
+    },
+
+    // Permissions array for staff members
+    // SUPER_ADMIN and SHOP_OWNER have implicit full access
+    // STAFF role requires explicit permission assignment
+    permissions: {
+      type: [String],
+      default: [],
+      validate: {
+        validator: function(permissions) {
+          // Only validate if permissions are being set
+          if (!permissions || permissions.length === 0) return true;
+          
+          // SUPER_ADMIN and SHOP_OWNER don't need explicit permissions
+          if (this.role === 'SUPER_ADMIN' || this.role === 'SHOP_OWNER') {
+            return true;
+          }
+          
+          // Validate permission keys for STAFF
+          const validation = validatePermissions(permissions);
+          return validation.valid;
+        },
+        message: 'Invalid permission keys provided'
+      }
     }
   },
   {
