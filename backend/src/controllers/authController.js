@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const Company = require('../models/Company');
 const { generateToken } = require('../utils/jwt');
+const { notifySuperAdmins } = require('../services/notificationService');
 
 // ============================================================
 // REGISTER COMPANY + SHOP OWNER
@@ -116,6 +117,16 @@ const register = async (req, res) => {
         company.createdBy = user._id;
         await company.save();
 
+        await notifySuperAdmins({
+            type: 'NEW_COMPANY',
+            title: 'New company registered',
+            message: `${company.name} has successfully registered on SpareFlow.`,
+            link: '/admin/companies',
+            resourceType: 'company',
+            resourceId: company._id,
+            dedupeKey: `new-company:${company._id}`
+        });
+
         // --------------------------------------------------------
         // Generate JWT
         // --------------------------------------------------------
@@ -138,7 +149,8 @@ const register = async (req, res) => {
                     email: user.email,
                     companyId: user.companyId,
                     role: user.role,
-                    status: user.status
+                    status: user.status,
+                    permissions: user.permissions || []
                 },
 
                 company: {
@@ -263,7 +275,7 @@ const login = async (req, res) => {
         // Check account status
         // --------------------------------------------------------
 
-        if (user.status !== 'ACTIVE') {
+        if (['INACTIVE', 'SUSPENDED'].includes(user.status)) {
             return res.status(403).json({
                 success: false,
                 message: 'User account is inactive'
@@ -326,7 +338,8 @@ const login = async (req, res) => {
                     email: user.email,
                     companyId: user.companyId,
                     role: user.role,
-                    status: user.status
+                    status: user.status,
+                    permissions: user.permissions || []
                 },
 
                 token

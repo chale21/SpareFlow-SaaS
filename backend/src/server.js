@@ -30,6 +30,7 @@ const salesRoutes = require('./routes/sales');
 const reportRoutes = require('./routes/report');
 const dashboardRoutes = require('./routes/dashboard');
 const stockMovementRoutes = require('./routes/stockMovement');
+const notificationRoutes = require('./routes/notification');
 
 // Import logger
 const logger = require('./utils/logger');
@@ -139,6 +140,7 @@ app.use('/api/v1/reports', reportRoutes);
 // Dashboard routes
 app.use('/api/v1/dashboard', dashboardRoutes);
 app.use('/api/v1/stock-movements', stockMovementRoutes);
+app.use('/api/v1/notifications', notificationRoutes);
 
 // ========================
 // ERROR HANDLING

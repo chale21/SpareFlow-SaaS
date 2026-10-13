@@ -67,13 +67,40 @@ router.post(
 router.get(
     '/profile',
     authenticateUser,
-    (req, res) => {
-        return res.status(200).json({
-            success: true,
-            data: {
-                user: req.user
+    async (req, res) => {
+        try {
+            const User = require('../models/User');
+            const user = await User.findById(req.user.id).select('-password');
+            
+            if (!user) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'User not found'
+                });
             }
-        });
+
+            return res.status(200).json({
+                success: true,
+                data: {
+                    user: {
+                        id: user._id,
+                        name: user.name,
+                        fullName: user.fullName,
+                        email: user.email,
+                        companyId: user.companyId,
+                        role: user.role,
+                        status: user.status,
+                        permissions: user.permissions || []
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Profile error:', error);
+            return res.status(500).json({
+                success: false,
+                message: 'Failed to fetch profile'
+            });
+        }
     }
 );
 

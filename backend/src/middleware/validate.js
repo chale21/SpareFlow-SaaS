@@ -9,6 +9,7 @@
  */
 
 const { body, param, query, validationResult } = require('express-validator');
+const { validatePermissions } = require('../config/permissions');
 
 /**
  * Middleware to check for validation errors
@@ -96,8 +97,19 @@ const validateUpdateStaff = [
   param('id').isMongoId().withMessage('Invalid user ID'),
   body('fullName').optional().trim().isLength({ min: 2, max: 100 }).withMessage('Full name must be between 2 and 100 characters'),
   body('phone').optional().trim().isLength({ max: 30 }).withMessage('Phone must not exceed 30 characters'),
-  body('role').optional().isIn(['SHOP_OWNER', 'STAFF']).withMessage('Invalid role'),
+  body('role').not().exists().withMessage('Staff roles cannot be changed'),
+  body('email').optional().trim().isEmail().withMessage('Invalid email address'),
   body('isActive').optional().isBoolean().withMessage('isActive must be boolean'),
+  body('permissions')
+    .optional()
+    .isArray().withMessage('Permissions must be an array')
+    .custom((permissions) => {
+      const validation = validatePermissions(permissions);
+      if (!validation.valid) {
+        throw new Error(`Invalid permissions: ${validation.invalid.join(', ')}`);
+      }
+      return true;
+    }),
   handleValidationErrors
 ];
 
@@ -311,12 +323,23 @@ const validateAddStaff = [
   
   body('role')
     .notEmpty().withMessage('Role is required')
-    .isIn(['SHOP_OWNER', 'STAFF']).withMessage('Invalid role'),
+    .equals('STAFF').withMessage('Staff accounts must use the STAFF role'),
   
   body('password')
     .notEmpty().withMessage('Password is required')
     .isLength({ min: 6 }).withMessage('Password must be at least 6 characters')
     .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/).withMessage('Password must contain uppercase, lowercase, and number'),
+  
+  body('permissions')
+    .optional()
+    .isArray().withMessage('Permissions must be an array')
+    .custom((permissions) => {
+      const validation = validatePermissions(permissions);
+      if (!validation.valid) {
+        throw new Error(`Invalid permissions: ${validation.invalid.join(', ')}`);
+      }
+      return true;
+    }),
   
   handleValidationErrors
 ];

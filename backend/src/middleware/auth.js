@@ -1,9 +1,10 @@
 const { verifyToken } = require('../utils/jwt');
+const User = require('../models/User');
 
 /**
  * Authenticate user using JWT
  */
-const authenticateUser = (req, res, next) => {
+const authenticateUser = async (req, res, next) => {
   try {
     // Get token from Authorization header
     const authHeader = req.headers.authorization;
@@ -21,13 +22,36 @@ const authenticateUser = (req, res, next) => {
     // Verify token
     const decoded = verifyToken(token);
 
+    // Load user from database to check current status
+    const user = await User.findById(decoded.id).select('isActive status email companyId role permissions');
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: 'User not found.'
+      });
+    }
+
+    // Check if user account is active
+    if (user.isActive === false || ['INACTIVE', 'SUSPENDED'].includes(user.status)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Account is deactivated. Contact your administrator.'
+      });
+    }
+
     // Add user information to request
     req.user = {
-      id: decoded.id,
-      email: decoded.email,
-      companyId: decoded.companyId,
-      role: decoded.role
+      id: user._id,
+      email: user.email,
+      companyId: user.companyId,
+      role: user.role
     };
+
+    // Add permissions to request for STAFF users
+    if (user.role === 'STAFF') {
+      req.userPermissions = user.permissions || [];
+    }
 
     next();
   } catch (error) {

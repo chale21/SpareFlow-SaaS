@@ -122,6 +122,7 @@ const ProductForm = ({
   onSubmit,
   onCancel,
   isLoading = false,
+  allowQuantityEdit = true,
 }) => {
   const [form, setForm] = useState(
     emptyProduct
@@ -732,6 +733,8 @@ const ProductForm = ({
           value={form.quantity}
           onChange={change}
           error={errors.quantity}
+          disabled={!allowQuantityEdit}
+          helperText={!allowQuantityEdit ? 'You do not have permission to adjust stock quantities.' : ''}
           required
         />
 
@@ -825,4 +828,3 @@ const ProductForm = ({
 };
 
 export default ProductForm;
-

@@ -24,8 +24,14 @@ import {
 } from 'react-icons/fi';
 
 import { supplierService } from '../services/productService';
+import usePermissions from '../hooks/usePermissions';
 
 const Suppliers = () => {
+  const {
+    canCreateSuppliers,
+    canUpdateSuppliers,
+    canDeleteSuppliers,
+  } = usePermissions();
   // ============================================================
   // STATE
   // ============================================================
@@ -842,15 +848,15 @@ const Suppliers = () => {
               Refresh
             </button>
 
-            <button
-              onClick={
-                handleOpenCreate
-              }
-              className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-700"
-            >
-              <FiPlus size={18} />
-              Add Supplier
-            </button>
+            {canCreateSuppliers && (
+              <button
+                onClick={handleOpenCreate}
+                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-700"
+              >
+                <FiPlus size={18} />
+                Add Supplier
+              </button>
+            )}
 
           </div>
 
@@ -1052,8 +1058,7 @@ const Suppliers = () => {
                   : 'Try changing your search or filters.'}
               </p>
 
-              {suppliers.length ===
-                0 && (
+              {canCreateSuppliers && suppliers.length === 0 && (
                 <button
                   onClick={
                     handleOpenCreate
@@ -1230,47 +1235,36 @@ const Suppliers = () => {
                                   View Details
                                 </button>
 
-                                <button
-                                  onClick={() =>
-                                    handleOpenEdit(
-                                      supplier
-                                    )
-                                  }
-                                  className="flex w-full items-center gap-3 px-4 py-2.5 text-sm hover:bg-slate-50"
-                                >
-                                  <FiEdit2 />
-                                  Edit Supplier
-                                </button>
-
-                                <button
-                                  onClick={() =>
-                                    handleToggleStatus(
-                                      supplier
-                                    )
-                                  }
-                                  className="flex w-full items-center gap-3 px-4 py-2.5 text-sm hover:bg-slate-50"
-                                >
-                                  <FiPower />
-
-                                  {supplier.status ===
-                                  'active'
-                                    ? 'Deactivate'
-                                    : 'Activate'}
-                                </button>
-
-                                <div className="my-1 border-t" />
-
-                                <button
-                                  onClick={() =>
-                                    handleDelete(
-                                      supplier
-                                    )
-                                  }
-                                  className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50"
-                                >
-                                  <FiTrash2 />
-                                  Delete Supplier
-                                </button>
+                                {canUpdateSuppliers && (
+                                  <>
+                                    <button
+                                      onClick={() => handleOpenEdit(supplier)}
+                                      className="flex w-full items-center gap-3 px-4 py-2.5 text-sm hover:bg-slate-50"
+                                    >
+                                      <FiEdit2 />
+                                      Edit Supplier
+                                    </button>
+                                    <button
+                                      onClick={() => handleToggleStatus(supplier)}
+                                      className="flex w-full items-center gap-3 px-4 py-2.5 text-sm hover:bg-slate-50"
+                                    >
+                                      <FiPower />
+                                      {supplier.status === 'active' ? 'Deactivate' : 'Activate'}
+                                    </button>
+                                  </>
+                                )}
+                                {canDeleteSuppliers && (
+                                  <>
+                                    <div className="my-1 border-t" />
+                                    <button
+                                      onClick={() => handleDelete(supplier)}
+                                      className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50"
+                                    >
+                                      <FiTrash2 />
+                                      Delete Supplier
+                                    </button>
+                                  </>
+                                )}
 
                               </div>
                             )}

@@ -8,7 +8,11 @@ let User;
 let mongoServer;
 
 beforeAll(async () => {
-  mongoServer = await MongoMemoryServer.create();
+  mongoServer = await MongoMemoryServer.create(
+    process.env.MONGOMS_SYSTEM_BINARY
+      ? { instance: { storageEngine: 'wiredTiger' } }
+      : {}
+  );
   const mongoUri = mongoServer.getUri();
 
   process.env.MONGO_URI = mongoUri;
@@ -71,6 +75,7 @@ describe('Authentication API', () => {
 
     await User.create({
       companyId: company._id,
+      name: 'Test Owner',
       fullName: 'Test Owner',
       email: 'owner@testcompany.com',
       password: 'Password123',
@@ -99,6 +104,7 @@ describe('Authentication API', () => {
 
     await User.create({
       companyId: company._id,
+      name: 'Test Owner',
       fullName: 'Test Owner',
       email: 'owner@testcompany.com',
       password: 'Password123',

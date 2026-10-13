@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const Sale = require('../models/Sale');
 const Product = require('../models/Product');
 const StockMovement = require('../models/StockMovement');
+const { notifySaleCompleted, notifyStockThresholds } = require('./notificationService');
 
 const { AppError } = require('../middleware/errorHandler');
 
@@ -158,7 +159,6 @@ const createSale = async (
 
   }
 
-
   // ==========================================================
   // CALCULATE TOTAL
   // ==========================================================
@@ -233,7 +233,7 @@ const createSale = async (
 
 
     // Create stock movement
-    await StockMovement.create({
+    const movement = await StockMovement.create({
 
       companyId,
 
@@ -262,8 +262,17 @@ const createSale = async (
 
     });
 
+    await notifyStockThresholds({
+      companyId,
+      product,
+      previousQuantity,
+      previousMinimumStock: product.minimumStock,
+      eventId: movement._id.toString()
+    });
+
   }
 
+  await notifySaleCompleted(companyId, sale);
 
   // ==========================================================
   // RETURN POPULATED SALE

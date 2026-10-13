@@ -27,6 +27,7 @@ import {
 import api from '../services/api';
 import supplierService from '../services/supplierService';
 import purchaseService from '../services/purchaseService';
+import usePermissions from '../hooks/usePermissions';
 
 
 // ============================================================
@@ -73,6 +74,7 @@ const extractData = (response) => {
 // ============================================================
 
 const Purchases = () => {
+  const { canCreatePurchases, canReceivePurchases } = usePermissions();
   // ==========================================================
   // DATA
   // ==========================================================
@@ -1175,7 +1177,7 @@ const Purchases = () => {
             </p>
           </div>
 
-          <button
+          {canCreatePurchases && <button
             type="button"
             onClick={
               openCreateModal
@@ -1185,7 +1187,7 @@ const Purchases = () => {
             <FiPlus size={18} />
 
             New Purchase
-          </button>
+          </button>}
         </div>
 
 
@@ -1487,7 +1489,7 @@ const Purchases = () => {
                   : 'Create your first purchase to begin.'}
               </p>
 
-              {!searchTerm &&
+              {canCreatePurchases && !searchTerm &&
                 statusFilter ===
                   'ALL' && (
                   <button
@@ -1728,7 +1730,7 @@ const Purchases = () => {
                                     </button>
 
 
-                                    {purchase.status ===
+                                    {canReceivePurchases && purchase.status ===
                                       'PENDING' && (
                                       <>
                                         <div className="my-1 border-t border-slate-100" />
@@ -1866,7 +1868,7 @@ const Purchases = () => {
                                 </button>
 
 
-                                {purchase.status ===
+                                {canReceivePurchases && purchase.status ===
                                   'PENDING' && (
 
                                   <button
@@ -2868,7 +2870,7 @@ const Purchases = () => {
                 </button>
 
 
-                {viewingPurchase.status ===
+                {canReceivePurchases && viewingPurchase.status ===
                   'PENDING' && (
 
                   <button

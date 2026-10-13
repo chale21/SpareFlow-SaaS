@@ -11,6 +11,8 @@ const {
   '../middleware/auth'
 );
 
+const { filterByCompany } = require('../middleware/tenant');
+const { requirePermission } = require('../middleware/permissions');
 
 const {
 
@@ -32,6 +34,8 @@ router.get(
   '/stats',
 
   authenticateUser,
+  filterByCompany,
+  requirePermission('dashboard.view'),
 
   getStats
 
@@ -47,6 +51,8 @@ router.get(
   '/recent-activities',
 
   authenticateUser,
+  filterByCompany,
+  requirePermission('dashboard.view'),
 
   getRecentActivities
 

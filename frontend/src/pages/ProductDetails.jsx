@@ -22,6 +22,7 @@ import Loading from '../components/common/Loading';
 import ErrorMessage from '../components/common/ErrorMessage';
 
 import StockStatus from '../components/products/StockStatus';
+import usePermissions from '../hooks/usePermissions';
 
 import {
   productService,
@@ -125,6 +126,7 @@ const ProductDetails = () => {
 
   const navigate =
     useNavigate();
+  const { canViewStockMovements } = usePermissions();
 
   // ----------------------------------------------------------
   // STATE
@@ -156,13 +158,10 @@ const ProductDetails = () => {
 
         try {
 
-          const [
-            productResponse,
-            movementResponse,
-          ] = await Promise.all([
-            productService.getProduct(id),
-            productService.getStockMovements(id),
-          ]);
+          const productResponse = await productService.getProduct(id);
+          const movementResponse = canViewStockMovements
+            ? await productService.getStockMovements(id)
+            : [];
 
           setProduct(
             productResponse
@@ -198,7 +197,7 @@ const ProductDetails = () => {
 
     loadProductDetails();
 
-  }, [id]);
+  }, [id, canViewStockMovements]);
 
   // ==========================================================
   // LOADING
@@ -478,6 +477,7 @@ const ProductDetails = () => {
           STOCK MOVEMENT HISTORY
       ====================================================== */}
 
+      {canViewStockMovements && (
       <div className="
         bg-white
         border
@@ -721,6 +721,7 @@ const ProductDetails = () => {
         )}
 
       </div>
+      )}
 
     </div>
   );

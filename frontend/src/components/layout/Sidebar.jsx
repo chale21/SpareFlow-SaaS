@@ -12,65 +12,106 @@ import {
   FiBell,
   FiBriefcase 
 } from 'react-icons/fi';
+import usePermissions from '../../hooks/usePermissions';
 
 const Sidebar = ({ isOpen, onClose }) => {
+  const { isShopOwner, isSuperAdmin, hasPermission } = usePermissions();
+  
   const menuItems = [
     {
       path: '/dashboard',
       label: 'Dashboard',
       icon: FiGrid,
+      permission: 'dashboard.view',
     },
     {
       path: '/inventory',
       label: 'Inventory',
       icon: FiPackage,
+      anyPermissions: ['inventory.view', 'products.view'],
     },
     {
       path: '/categories',
       label: 'Categories',
       icon: FiLayers,
+      permission: 'categories.view',
     },
     {
       path: '/suppliers',
       label: 'Suppliers',
       icon: FiTruck,
+      permission: 'suppliers.view',
     },
     {
       path: '/purchases',
       label: 'Purchases',
       icon: FiShoppingCart,
+      permission: 'purchases.view',
     },
     {
       path: '/sales',
       label: 'Sales',
       icon: FiDollarSign,
+      anyPermissions: ['sales.view', 'sales.create'],
     },
     {
       path: '/reports',
       label: 'Reports',
       icon: FiBarChart2,
+      permission: 'reports.view',
     },
     {
-  path: '/company',
-  label: 'Company',
-  icon: FiBriefcase,
-},
-{
-  path: '/users',
-  label: 'Users',
-  icon: FiBriefcase,
-},
+      path: '/company',
+      label: 'Company',
+      icon: FiBriefcase,
+      // Company settings - only for Shop Owners and Super Admins
+      permission: null,
+      roleCheck: () => isShopOwner || isSuperAdmin,
+    },
     {
-  path: '/notifications',
-  label: 'Notifications',
-  icon: FiBell,
-},
+      path: '/users',
+      label: 'Users',
+      icon: FiBriefcase,
+      permission: 'staff.view',
+    },
+    {
+      path: '/notifications',
+      label: 'Notifications',
+      icon: FiBell,
+      permission: 'notifications.view',
+    },
+    {
+      path: '/stock-movements',
+      label: 'Stock Movements',
+      icon: FiPackage,
+      permission: 'stockMovements.view',
+    },
     {
       path: '/settings',
       label: 'Settings',
       icon: FiSettings,
+      // Settings - only for Shop Owners and Super Admins
+      permission: null,
+      roleCheck: () => isShopOwner || isSuperAdmin,
     },
   ];
+
+  // Filter menu items based on permissions
+  const filteredMenuItems = menuItems.filter(item => {
+    // If item has a roleCheck function, use it
+    if (item.roleCheck) {
+      return item.roleCheck();
+    }
+    // If item has a permission, check it
+    if (item.anyPermissions) {
+      return item.anyPermissions.some(hasPermission);
+    }
+    if (item.permission) {
+      return hasPermission(item.permission);
+    }
+    // If no permission or roleCheck, show by default (shouldn't happen)
+    return true;
+  });
 
   return (
     <>
@@ -172,7 +213,7 @@ const Sidebar = ({ isOpen, onClose }) => {
           </p>
 
           <ul className="space-y-1">
-            {menuItems.map((item) => {
+            {filteredMenuItems.map((item) => {
               const Icon = item.icon;
 
               return (
