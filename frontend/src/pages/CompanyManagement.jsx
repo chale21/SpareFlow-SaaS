@@ -43,15 +43,32 @@ const CompanyManagement = () => {
   useEffect(() => {
     const loadCompany = async () => {
       try {
-        const response = await companyService.getProfile();
-        const profile = response?.data;
-        setCompany({ ...profile, companyName: profile?.name || '', email: profile?.contactEmail || '', phone: profile?.contactPhone || '', logo: null, owner: { name: user?.fullName || user?.name || '', email: user?.email || '', role: user?.role || '', avatar: null } });
+        const profile = await companyService.getProfile();
+
+        // Normalize fields and set local preview values
+        setCompany((previous) => ({
+          ...previous,
+          ...profile,
+          companyName: profile?.name || profile?.companyName || '',
+          email: profile?.contactEmail || profile?.email || '',
+          phone: profile?.contactPhone || profile?.phone || '',
+          logo: profile?.logo || null,
+          owner: profile?.owner || previous.owner,
+        }));
+
+        setFormData({
+          companyName: profile?.name || profile?.companyName || '',
+          email: profile?.contactEmail || profile?.email || '',
+          phone: profile?.contactPhone || profile?.phone || '',
+          address: profile?.address || '',
+        });
       } catch (error) {
         setLoadError(error?.response?.data?.message || 'Unable to load company profile.');
       } finally {
         setIsLoading(false);
       }
     };
+
     loadCompany();
   }, [user]);
 
@@ -60,6 +77,8 @@ const CompanyManagement = () => {
   // ============================================================
 
   const logoInputRef = useRef(null);
+
+  const [logoFile, setLogoFile] = useState(null);
 
   const handleLogoUpload = (event) => {
     const file = event.target.files?.[0];
@@ -88,7 +107,15 @@ const CompanyManagement = () => {
       return;
     }
 
-    showNotification('error', 'Company logo uploads are not supported by the backend.');
+    // Preview the selected logo locally and keep the file for upload on save
+    try {
+      const previewUrl = URL.createObjectURL(file);
+      setCompany((prev) => ({ ...prev, logo: previewUrl }));
+      setLogoFile(file);
+      showNotification('success', 'Logo selected. Click Save to upload.');
+    } catch (err) {
+      showNotification('error', 'Unable to preview selected logo.');
+    }
 
     // Allow selecting the same file again
     event.target.value = '';
@@ -101,6 +128,8 @@ const CompanyManagement = () => {
   // ============================================================
   // COMPANY OWNER IMAGE UPLOAD
   // ============================================================
+
+  const [ownerImageFile, setOwnerImageFile] = useState(null);
 
   const handleOwnerImageUpload = (event) => {
     const file = event.target.files?.[0];
@@ -129,7 +158,14 @@ const CompanyManagement = () => {
       return;
     }
 
-    showNotification('error', 'Owner image uploads are not supported by the backend.');
+    try {
+      const previewUrl = URL.createObjectURL(file);
+      setCompany((prev) => ({ ...prev, owner: { ...(prev.owner || {}), avatar: previewUrl } }));
+      setOwnerImageFile(file);
+      showNotification('success', 'Owner image selected. Click Save to upload.');
+    } catch (err) {
+      showNotification('error', 'Unable to preview selected owner image.');
+    }
 
     // Allow selecting the same file again
     event.target.value = '';
@@ -309,19 +345,68 @@ const CompanyManagement = () => {
     );
 
     try {
-      const response = await companyService.updateProfile({
+      // Build payload with email included
+      const payload = {
         name: formData.companyName.trim(),
+        contactEmail: formData.email.trim(),
         contactPhone: formData.phone.trim(),
         address: formData.address.trim(),
-      });
-      const profile = response?.data;
-      setCompany((previous) => ({ ...previous, ...profile, companyName: profile?.name || formData.companyName.trim(), email: profile?.contactEmail || formData.email.trim(), phone: profile?.contactPhone || formData.phone.trim() }));
+      };
+
+      // If there are files to upload, attempt a multipart upload (API must support this route).
+      if (logoFile || ownerImageFile) {
+        // Attempt to upload logo first if present
+        if (logoFile) {
+          const fd = new FormData();
+          fd.append('logo', logoFile);
+
+          try {
+            await companyService.uploadLogo(fd);
+            showNotification('success', 'Company logo uploaded.');
+          } catch (logoErr) {
+            // continue - show warning but still attempt profile update
+            console.warn('Logo upload failed:', logoErr);
+            showNotification('error', logoErr?.response?.data?.message || 'Logo upload failed.');
+          }
+        }
+
+        if (ownerImageFile) {
+          const fd2 = new FormData();
+          fd2.append('ownerAvatar', ownerImageFile);
+
+          try {
+            await companyService.uploadOwnerAvatar(fd2);
+            showNotification('success', 'Owner image uploaded.');
+          } catch (ownerErr) {
+            console.warn('Owner image upload failed:', ownerErr);
+            showNotification('error', ownerErr?.response?.data?.message || 'Owner image upload failed.');
+          }
+        }
+      }
+
+      const profile = await companyService.updateProfile(payload);
+
+      setCompany((previous) => ({
+        ...previous,
+        ...profile,
+        companyName: profile?.name || formData.companyName.trim(),
+        email: profile?.contactEmail || formData.email.trim(),
+        phone: profile?.contactPhone || formData.phone.trim(),
+      }));
+
       setIsEditModalOpen(false);
       showNotification('success', 'Company information updated successfully.');
     } catch (saveError) {
       showNotification('error', saveError?.response?.data?.message || 'Unable to update company profile.');
     } finally {
       setIsSaving(false);
+      // release any object URLs created for previews
+      if (logoFile) {
+        try { URL.revokeObjectURL(company.logo); } catch (e) {}
+      }
+      if (ownerImageFile) {
+        try { URL.revokeObjectURL(company?.owner?.avatar); } catch (e) {}
+      }
     }
   };
 
