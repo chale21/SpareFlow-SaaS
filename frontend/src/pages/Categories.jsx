@@ -823,7 +823,7 @@ const response = await categoryService.getCategories();
 
           ) : (
 
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto overflow-visible">
 
               <table className="w-full min-w-[750px]">
 

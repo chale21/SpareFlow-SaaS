@@ -183,24 +183,11 @@ const storedUser = storage.getUser();
   // LOGOUT
   // ============================================================
 
-  const logout = async () => {
-    try {
-      setIsLoading(true);
-
-      // Tell backend about logout
-      await authService.logout();
-    } catch (error) {
-      console.error('Logout request failed:', error);
-    } finally {
-      // Always clear local authentication
-      storage.clearAuth();
-
-      setToken(null);
-      setUser(null);
-      setError('');
-
-      setIsLoading(false);
-    }
+  const logout = () => {
+    storage.clearAuth();
+    setToken(null);
+    setUser(null);
+    setError('');
   };
 
   // ============================================================

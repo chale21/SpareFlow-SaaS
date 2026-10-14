@@ -1074,7 +1074,7 @@ const Suppliers = () => {
 
           ) : (
 
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto overflow-visible">
 
               <table className="w-full min-w-[900px]">
 

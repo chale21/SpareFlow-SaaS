@@ -2,6 +2,7 @@ import React, {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import {
@@ -15,6 +16,7 @@ import {
   FiTrash2,
   FiX,
   FiXCircle,
+  FiMoreVertical,
 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 
@@ -173,6 +175,33 @@ const Inventory = () => {
 
   const [deleteTarget, setDeleteTarget] =
     useState(null);
+
+  const [openMenuId, setOpenMenuId] = useState(null);
+  const menuRef = useRef(null);
+
+  // Close open menu when clicking outside or pressing Escape
+  useEffect(() => {
+    function handleDocumentClick(e) {
+      if (!menuRef.current) return;
+      if (!menuRef.current.contains(e.target)) {
+        setOpenMenuId(null);
+      }
+    }
+
+    function handleKeydown(e) {
+      if (e.key === 'Escape') {
+        setOpenMenuId(null);
+      }
+    }
+
+    document.addEventListener('mousedown', handleDocumentClick);
+    document.addEventListener('keydown', handleKeydown);
+
+    return () => {
+      document.removeEventListener('mousedown', handleDocumentClick);
+      document.removeEventListener('keydown', handleKeydown);
+    };
+  }, [menuRef]);
 
   // ============================================================
   // LOAD PRODUCTS
@@ -791,8 +820,8 @@ const Inventory = () => {
              TABLE
           =================================================== */
 
-          <div className="overflow-x-auto">
-            <table className="min-w-[1000px] w-full">
+          <div className="overflow-x-auto overflow-visible">
+            <table className="min-w-[980px] w-full">
 
               <thead className="bg-slate-50">
                 <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
@@ -908,39 +937,64 @@ const Inventory = () => {
                         <td className="px-5 py-4">
                           <div className="flex justify-end gap-1">
 
-                            <IconButton
-                              title="View details"
-                              onClick={() =>
-                                navigate(
-                                  `/inventory/${productId}`
-                                )
-                              }
-                            >
-                              <FiEye />
-                            </IconButton>
-
-                            {canUpdateProducts && (
-                              <IconButton
-                                title="Edit product"
-                                onClick={() => openEdit(product)}
+                            <div className="relative inline-block" ref={openMenuId === productId ? menuRef : null}>
+                              <button
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  setOpenMenuId(openMenuId === productId ? null : productId);
+                                }}
+                                className="flex h-9 w-9 items-center justify-center rounded-lg hover:bg-slate-100"
+                                aria-expanded={openMenuId === productId}
+                                aria-haspopup="true"
                               >
-                                <FiEdit2 />
-                              </IconButton>
-                            )}
+                                <FiMoreVertical />
+                              </button>
 
-                            {canDeleteProducts && (
-                              <IconButton
-                                title="Delete product"
-                                danger
-                                onClick={() =>
-                                  setDeleteTarget(
-                                    product
-                                  )
-                                }
-                              >
-                                <FiTrash2 />
-                              </IconButton>
-                            )}
+                              {openMenuId === productId && (
+                                <div className="absolute right-0 top-10 z-50 w-44 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 text-left shadow-xl">
+
+                                  <button
+                                    onClick={() => {
+                                      navigate(`/inventory/${productId}`);
+                                      setOpenMenuId(null);
+                                    }}
+                                    className="flex w-full items-center gap-3 px-4 py-2.5 text-sm hover:bg-slate-50"
+                                  >
+                                    <FiEye />
+                                    View Details
+                                  </button>
+
+                                  {canUpdateProducts && (
+                                    <button
+                                      onClick={() => {
+                                        openEdit(product);
+                                        setOpenMenuId(null);
+                                      }}
+                                      className="flex w-full items-center gap-3 px-4 py-2.5 text-sm hover:bg-slate-50"
+                                    >
+                                      <FiEdit2 />
+                                      Edit Product
+                                    </button>
+                                  )}
+
+                                  {canDeleteProducts && <div className="my-1 border-t" />}
+
+                                  {canDeleteProducts && (
+                                    <button
+                                      onClick={() => {
+                                        setDeleteTarget(product);
+                                        setOpenMenuId(null);
+                                      }}
+                                      className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50"
+                                    >
+                                      <FiTrash2 />
+                                      Delete Product
+                                    </button>
+                                  )}
+
+                                </div>
+                              )}
+                            </div>
 
                           </div>
                         </td>

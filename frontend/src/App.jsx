@@ -27,10 +27,7 @@ import Purchases from './pages/Purchases';
 import Sales from './pages/Sales';
 import SalesHistory from './pages/SalesHistory';
 import Invoice from './pages/Invoice';
-import Reports from './pages/Reports';
 
-
-import Settings from './pages/Settings';
 import Notifications from './pages/Notifications';
 import CompanyManagement from './pages/CompanyManagement';
 import UserManagement from './pages/UserManagement';
@@ -180,16 +177,6 @@ function App() {
               }
             />
 
-            {/* Reports */}
-            <Route
-              path="/reports"
-              element={
-                <MainLayout>
-                  <PermissionRoute permission="reports.view"><Reports /></PermissionRoute>
-                </MainLayout>
-              }
-            />
-
             {/* Notifications */}
             <Route
               path="/notifications"
@@ -205,16 +192,6 @@ function App() {
               element={
                 <MainLayout>
                   <PermissionRoute role="SUPER_ADMIN"><AdminCompanies /></PermissionRoute>
-                </MainLayout>
-              }
-            />
-
-            {/* Settings */}
-            <Route
-              path="/settings"
-              element={
-                <MainLayout>
-                  <PermissionRoute roles={['SHOP_OWNER', 'SUPER_ADMIN']}><Settings /></PermissionRoute>
                 </MainLayout>
               }
             />

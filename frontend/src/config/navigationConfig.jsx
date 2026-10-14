@@ -5,11 +5,9 @@ import {
   FiTruck,
   FiShoppingCart,
   FiDollarSign,
-  FiBarChart2,
   FiBell,
   FiBriefcase,
   FiUsers,
-  FiSettings,
 } from 'react-icons/fi';
 
 /*
@@ -71,13 +69,6 @@ export const NAVIGATION_ITEMS = [
   },
 
   {
-    label: 'Reports',
-    path: '/reports',
-    icon: FiBarChart2,
-    roles: ['SUPER_ADMIN', 'SHOP_OWNER'],
-  },
-
-  {
     label: 'Notifications',
     path: '/notifications',
     icon: FiBell,
@@ -98,12 +89,6 @@ export const NAVIGATION_ITEMS = [
     roles: ['SUPER_ADMIN', 'SHOP_OWNER'],
   },
 
-  {
-    label: 'Business Settings',
-    path: '/settings',
-    icon: FiSettings,
-    roles: ['SHOP_OWNER'],
-  },
 ];
 
 /*

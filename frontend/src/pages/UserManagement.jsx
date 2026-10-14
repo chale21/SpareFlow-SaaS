@@ -784,7 +784,7 @@ const UserManagement = () => {
               DESKTOP TABLE
           ==================================================== */}
 
-          <div className="hidden overflow-x-auto lg:block">
+          <div className="hidden overflow-x-auto overflow-visible lg:block">
             <table className="w-full min-w-[900px]">
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50/70">

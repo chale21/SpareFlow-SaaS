@@ -23,6 +23,29 @@ import {
 import companyService from '../services/companyService';
 import useAuth from '../hooks/useAuth';
 
+const DEFAULT_SETTINGS = {
+  currency: 'ETB',
+  timezone: 'Africa/Addis_Ababa',
+  dateFormat: 'DD/MM/YYYY',
+  lowStockThreshold: 5,
+  invoicePrefix: 'INV',
+  taxRate: 15,
+  lowStockNotifications: true,
+  emailNotifications: true,
+};
+
+const getApiErrorMessage = (error, fallback) => {
+  const validationMessages = error?.response?.data?.errors
+    ?.map((item) => item.message)
+    .filter(Boolean);
+
+  if (validationMessages?.length) {
+    return validationMessages.join(' ');
+  }
+
+  return error?.response?.data?.message || fallback;
+};
+
 const CompanyManagement = () => {
   const { user } = useAuth();
   const [company, setCompany] = useState({
@@ -31,6 +54,10 @@ const CompanyManagement = () => {
     contactEmail: '',
     contactPhone: '',
     address: '',
+    companyName: '',
+    email: '',
+    phone: '',
+    logo: null,
     status: '',
     subscriptionPlan: '',
     createdAt: null,
@@ -43,15 +70,39 @@ const CompanyManagement = () => {
   useEffect(() => {
     const loadCompany = async () => {
       try {
-        const response = await companyService.getProfile();
-        const profile = response?.data;
-        setCompany({ ...profile, companyName: profile?.name || '', email: profile?.contactEmail || '', phone: profile?.contactPhone || '', logo: null, owner: { name: user?.fullName || user?.name || '', email: user?.email || '', role: user?.role || '', avatar: null } });
+        const profile = await companyService.getProfile();
+
+        // Normalize fields and set local preview values
+        setCompany((previous) => ({
+          ...previous,
+          ...profile,
+          companyName: profile?.name || profile?.companyName || '',
+          email: profile?.contactEmail || profile?.email || '',
+          phone: profile?.contactPhone || profile?.phone || '',
+          logo: profile?.logo || null,
+          owner: profile?.owner || previous.owner,
+        }));
+
+        const savedSettings = {
+          ...DEFAULT_SETTINGS,
+          ...(profile?.settings || {}),
+        };
+        setSettings(savedSettings);
+        setSettingsForm(savedSettings);
+
+        setFormData({
+          companyName: profile?.name || profile?.companyName || '',
+          email: profile?.contactEmail || profile?.email || '',
+          phone: profile?.contactPhone || profile?.phone || '',
+          address: profile?.address || '',
+        });
       } catch (error) {
         setLoadError(error?.response?.data?.message || 'Unable to load company profile.');
       } finally {
         setIsLoading(false);
       }
     };
+
     loadCompany();
   }, [user]);
 
@@ -60,6 +111,8 @@ const CompanyManagement = () => {
   // ============================================================
 
   const logoInputRef = useRef(null);
+
+  const [logoFile, setLogoFile] = useState(null);
 
   const handleLogoUpload = (event) => {
     const file = event.target.files?.[0];
@@ -88,7 +141,15 @@ const CompanyManagement = () => {
       return;
     }
 
-    showNotification('error', 'Company logo uploads are not supported by the backend.');
+    // Preview the selected logo locally and keep the file for upload on save
+    try {
+      const previewUrl = URL.createObjectURL(file);
+      setCompany((prev) => ({ ...prev, logo: previewUrl }));
+      setLogoFile(file);
+      showNotification('success', 'Logo selected. Click Save to upload.');
+    } catch (err) {
+      showNotification('error', 'Unable to preview selected logo.');
+    }
 
     // Allow selecting the same file again
     event.target.value = '';
@@ -101,6 +162,8 @@ const CompanyManagement = () => {
   // ============================================================
   // COMPANY OWNER IMAGE UPLOAD
   // ============================================================
+
+  const [ownerImageFile, setOwnerImageFile] = useState(null);
 
   const handleOwnerImageUpload = (event) => {
     const file = event.target.files?.[0];
@@ -129,7 +192,14 @@ const CompanyManagement = () => {
       return;
     }
 
-    showNotification('error', 'Owner image uploads are not supported by the backend.');
+    try {
+      const previewUrl = URL.createObjectURL(file);
+      setCompany((prev) => ({ ...prev, owner: { ...(prev.owner || {}), avatar: previewUrl } }));
+      setOwnerImageFile(file);
+      showNotification('success', 'Owner image selected. Click Save to upload.');
+    } catch (err) {
+      showNotification('error', 'Unable to preview selected owner image.');
+    }
 
     // Allow selecting the same file again
     event.target.value = '';
@@ -139,16 +209,7 @@ const CompanyManagement = () => {
   // BUSINESS SETTINGS
   // ============================================================
 
-  const [settings, setSettings] = useState({
-    currency: 'ETB',
-    timezone: 'Africa/Addis_Ababa',
-    dateFormat: 'DD/MM/YYYY',
-    lowStockThreshold: 5,
-    invoicePrefix: 'INV',
-    taxRate: 15,
-    lowStockNotifications: true,
-    emailNotifications: true,
-  });
+  const [settings, setSettings] = useState(DEFAULT_SETTINGS);
 
   const [settingsForm, setSettingsForm] = useState(settings);
 
@@ -193,7 +254,7 @@ const CompanyManagement = () => {
     });
   };
 
-  const getInitials = (name) => {
+  const getInitials = (name = '') => {
     return name
       .split(' ')
       .map((part) => part[0])
@@ -267,29 +328,39 @@ const CompanyManagement = () => {
   const validateCompanyForm = () => {
     const newErrors = {};
 
-    if (!formData.companyName.trim()) {
+    const companyName = formData.companyName.trim();
+    if (companyName.length < 2 || companyName.length > 150) {
       newErrors.companyName =
-        'Company name is required.';
+        'Company name must be between 2 and 150 characters.';
     }
 
-    if (!formData.email.trim()) {
+    const email = formData.email.trim();
+    if (!email) {
       newErrors.email =
         'Business email is required.';
     } else if (
-      !/^\S+@\S+\.\S+$/.test(formData.email)
+      !/^\S+@\S+\.\S+$/.test(email)
     ) {
       newErrors.email =
         'Please enter a valid email address.';
+    } else if (email.length > 150) {
+      newErrors.email = 'Business email must not exceed 150 characters.';
     }
 
-    if (!formData.phone.trim()) {
+    const phone = formData.phone.trim();
+    if (!phone) {
       newErrors.phone =
         'Phone number is required.';
+    } else if (phone.length > 30) {
+      newErrors.phone = 'Phone number must not exceed 30 characters.';
     }
 
-    if (!formData.address.trim()) {
+    const address = formData.address.trim();
+    if (!address) {
       newErrors.address =
         'Business address is required.';
+    } else if (address.length > 300) {
+      newErrors.address = 'Business address must not exceed 300 characters.';
     }
 
     setErrors(newErrors);
@@ -304,24 +375,91 @@ const CompanyManagement = () => {
 
     setIsSaving(true);
 
-    await new Promise((resolve) =>
-      setTimeout(resolve, 700)
-    );
-
     try {
-      const response = await companyService.updateProfile({
+      // Build payload with email included
+      const payload = {
         name: formData.companyName.trim(),
+        contactEmail: formData.email.trim(),
         contactPhone: formData.phone.trim(),
         address: formData.address.trim(),
-      });
-      const profile = response?.data;
-      setCompany((previous) => ({ ...previous, ...profile, companyName: profile?.name || formData.companyName.trim(), email: profile?.contactEmail || formData.email.trim(), phone: profile?.contactPhone || formData.phone.trim() }));
+      };
+
+      // If there are files to upload, attempt a multipart upload (API must support this route).
+      if (logoFile || ownerImageFile) {
+        // Attempt to upload logo first if present
+        if (logoFile) {
+          const fd = new FormData();
+          fd.append('logo', logoFile);
+
+          try {
+            await companyService.uploadLogo(fd);
+            showNotification('success', 'Company logo uploaded.');
+          } catch (logoErr) {
+            // continue - show warning but still attempt profile update
+            console.warn('Logo upload failed:', logoErr);
+            showNotification('error', logoErr?.response?.data?.message || 'Logo upload failed.');
+          }
+        }
+
+        if (ownerImageFile) {
+          const fd2 = new FormData();
+          fd2.append('ownerAvatar', ownerImageFile);
+
+          try {
+            await companyService.uploadOwnerAvatar(fd2);
+            showNotification('success', 'Owner image uploaded.');
+          } catch (ownerErr) {
+            console.warn('Owner image upload failed:', ownerErr);
+            showNotification('error', ownerErr?.response?.data?.message || 'Owner image upload failed.');
+          }
+        }
+      }
+
+      const profile = await companyService.updateProfile(payload);
+
+      setCompany((previous) => ({
+        ...previous,
+        ...profile,
+        companyName: profile?.name || formData.companyName.trim(),
+        email: profile?.contactEmail || formData.email.trim(),
+        phone: profile?.contactPhone || formData.phone.trim(),
+      }));
+
       setIsEditModalOpen(false);
       showNotification('success', 'Company information updated successfully.');
     } catch (saveError) {
-      showNotification('error', saveError?.response?.data?.message || 'Unable to update company profile.');
+      const validationErrors = saveError?.response?.data?.errors || [];
+      if (validationErrors.length) {
+        const fields = {
+          name: 'companyName',
+          contactEmail: 'email',
+          contactPhone: 'phone',
+        };
+        setErrors((previous) => ({
+          ...previous,
+          ...Object.fromEntries(
+            validationErrors
+              .filter((item) => fields[item.field || item.path || item.param])
+              .map((item) => [
+                fields[item.field || item.path || item.param],
+                item.message,
+              ])
+          ),
+        }));
+      }
+      showNotification(
+        'error',
+        getApiErrorMessage(saveError, 'Unable to update company profile.')
+      );
     } finally {
       setIsSaving(false);
+      // release any object URLs created for previews
+      if (logoFile) {
+        try { URL.revokeObjectURL(company.logo); } catch (e) {}
+      }
+      if (ownerImageFile) {
+        try { URL.revokeObjectURL(company?.owner?.avatar); } catch (e) {}
+      }
     }
   };
 
@@ -410,13 +548,45 @@ const CompanyManagement = () => {
     if (!validateSettings()) return;
 
     setIsSavingSettings(true);
+    try {
+      const savedProfile = await companyService.updateProfile({
+        settings: {
+          ...settingsForm,
+          lowStockThreshold: Number(settingsForm.lowStockThreshold),
+          taxRate: Number(settingsForm.taxRate),
+        },
+      });
+      const savedSettings = {
+        ...DEFAULT_SETTINGS,
+        ...(savedProfile?.settings || settingsForm),
+      };
 
-    await new Promise((resolve) =>
-      setTimeout(resolve, 700)
-    );
-
-    setIsSavingSettings(false);
-    showNotification('error', 'Business settings are not supported by the backend.');
+      setSettings(savedSettings);
+      setSettingsForm(savedSettings);
+      setCompany((previous) => ({ ...previous, ...savedProfile }));
+      showNotification('success', 'Business settings saved successfully.');
+    } catch (saveError) {
+      const validationErrors = saveError?.response?.data?.errors || [];
+      if (validationErrors.length) {
+        setSettingsErrors((previous) => ({
+          ...previous,
+          ...Object.fromEntries(
+            validationErrors
+              .filter((item) => (item.field || item.path || item.param || '').startsWith('settings.'))
+              .map((item) => [
+                (item.field || item.path || item.param).slice('settings.'.length),
+                item.message,
+              ])
+          ),
+        }));
+      }
+      showNotification(
+        'error',
+        getApiErrorMessage(saveError, 'Unable to save business settings.')
+      );
+    } finally {
+      setIsSavingSettings(false);
+    }
   };
 
   const handleResetSettings = () => {
@@ -494,13 +664,30 @@ const CompanyManagement = () => {
 
           <button
             onClick={handleOpenEdit}
+            disabled={isLoading || Boolean(loadError)}
             className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
           >
             <FiEdit2 size={16} />
-            Edit Company
+            {isLoading ? 'Loading Company...' : 'Edit Company'}
           </button>
 
         </div>
+
+        {loadError && (
+          <div className="mb-6 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
+            <FiAlertCircle className="mt-0.5 shrink-0" size={18} />
+            <div>
+              <p className="font-semibold">Company profile could not be loaded.</p>
+              <p className="mt-1">{loadError} Refresh the page and try again.</p>
+            </div>
+          </div>
+        )}
+
+        {isLoading && (
+          <div className="mb-6 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-700" role="status">
+            Loading company profile and settings...
+          </div>
+        )}
 
         {/* ====================================================
             COMPANY HERO CARD
@@ -1215,8 +1402,8 @@ const CompanyManagement = () => {
                   <button
                     type="button"
                     onClick={handleResetSettings}
-                    disabled={isSavingSettings}
-                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                    disabled={isLoading || Boolean(loadError) || isSavingSettings}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     <FiRotateCcw size={16} />
                     Reset
@@ -1224,7 +1411,7 @@ const CompanyManagement = () => {
 
                   <button
                     type="submit"
-                    disabled={isSavingSettings}
+                    disabled={isLoading || Boolean(loadError) || isSavingSettings}
                     className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
                   >
                     {isSavingSettings ? (

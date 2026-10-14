@@ -23,7 +23,7 @@ const handleValidationErrors = (req, res, next) => {
       success: false,
       message: 'Validation failed',
       errors: errors.array().map(err => ({
-        field: err.param,
+        field: err.path || err.param,
         message: err.msg
       }))
     });
@@ -117,8 +117,18 @@ const validateCompanyUpdate = [
   body('name').optional().trim().isLength({ min: 2, max: 150 }).withMessage('Company name must be between 2 and 150 characters'),
   body('contactName').optional().trim().isLength({ max: 120 }).withMessage('Contact name must not exceed 120 characters'),
   body('contactPhone').optional().trim().isLength({ max: 30 }).withMessage('Contact phone must not exceed 30 characters'),
+  body('contactEmail').optional({ checkFalsy: true }).trim().isEmail().withMessage('Business email must be a valid email address').isLength({ max: 150 }).withMessage('Business email must not exceed 150 characters'),
   body('address').optional().trim().isLength({ max: 300 }).withMessage('Address must not exceed 300 characters'),
   body('website').optional().trim().isURL().withMessage('Website must be a valid URL'),
+  body('settings').optional().isObject().withMessage('Settings must be an object'),
+  body('settings.currency').optional().isIn(['ETB', 'USD', 'EUR', 'GBP']).withMessage('Currency is not supported'),
+  body('settings.timezone').optional().trim().isLength({ min: 1, max: 100 }).withMessage('Time zone must be between 1 and 100 characters'),
+  body('settings.dateFormat').optional().isIn(['DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD']).withMessage('Date format is not supported'),
+  body('settings.lowStockThreshold').optional().isFloat({ min: 0 }).withMessage('Low stock threshold must be 0 or greater').toFloat(),
+  body('settings.invoicePrefix').optional().trim().isLength({ min: 1, max: 20 }).withMessage('Invoice prefix must be between 1 and 20 characters'),
+  body('settings.taxRate').optional().isFloat({ min: 0, max: 100 }).withMessage('Tax rate must be between 0 and 100').toFloat(),
+  body('settings.lowStockNotifications').optional().isBoolean().withMessage('Low stock notifications must be boolean').toBoolean(),
+  body('settings.emailNotifications').optional().isBoolean().withMessage('Email notifications must be boolean').toBoolean(),
   handleValidationErrors
 ];
 

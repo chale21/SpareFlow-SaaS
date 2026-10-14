@@ -81,8 +81,6 @@ const usePermissions = () => {
     canDeleteStaff: hasPermission(user, 'staff.delete'),
     canActivateStaff: hasPermission(user, 'staff.activate'),
     canManageStaffPermissions: hasPermission(user, 'staff.permissions.manage'),
-    
-    canViewReports: hasPermission(user, 'reports.view'),
   };
 };
 

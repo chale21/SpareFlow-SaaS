@@ -87,7 +87,9 @@ router.get(
                         name: user.name,
                         fullName: user.fullName,
                         email: user.email,
+                        phone: user.phone,
                         companyId: user.companyId,
+                        isActive: user.isActive,
                         role: user.role,
                         status: user.status,
                         permissions: user.permissions || []
