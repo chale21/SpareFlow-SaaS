@@ -23,8 +23,6 @@ const navigationItems = getNavigationForRole(
     '/suppliers': 'Suppliers',
     '/purchases': 'Purchases',
     '/sales': 'Sales',
-    '/reports': 'Reports',
-    '/settings': 'Settings',
     '/notifications': 'Notifications',
     '/admin/companies': 'Companies',
   };

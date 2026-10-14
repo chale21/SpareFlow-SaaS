@@ -23,6 +23,29 @@ import {
 import companyService from '../services/companyService';
 import useAuth from '../hooks/useAuth';
 
+const DEFAULT_SETTINGS = {
+  currency: 'ETB',
+  timezone: 'Africa/Addis_Ababa',
+  dateFormat: 'DD/MM/YYYY',
+  lowStockThreshold: 5,
+  invoicePrefix: 'INV',
+  taxRate: 15,
+  lowStockNotifications: true,
+  emailNotifications: true,
+};
+
+const getApiErrorMessage = (error, fallback) => {
+  const validationMessages = error?.response?.data?.errors
+    ?.map((item) => item.message)
+    .filter(Boolean);
+
+  if (validationMessages?.length) {
+    return validationMessages.join(' ');
+  }
+
+  return error?.response?.data?.message || fallback;
+};
+
 const CompanyManagement = () => {
   const { user } = useAuth();
   const [company, setCompany] = useState({
@@ -31,6 +54,10 @@ const CompanyManagement = () => {
     contactEmail: '',
     contactPhone: '',
     address: '',
+    companyName: '',
+    email: '',
+    phone: '',
+    logo: null,
     status: '',
     subscriptionPlan: '',
     createdAt: null,
@@ -55,6 +82,13 @@ const CompanyManagement = () => {
           logo: profile?.logo || null,
           owner: profile?.owner || previous.owner,
         }));
+
+        const savedSettings = {
+          ...DEFAULT_SETTINGS,
+          ...(profile?.settings || {}),
+        };
+        setSettings(savedSettings);
+        setSettingsForm(savedSettings);
 
         setFormData({
           companyName: profile?.name || profile?.companyName || '',
@@ -175,16 +209,7 @@ const CompanyManagement = () => {
   // BUSINESS SETTINGS
   // ============================================================
 
-  const [settings, setSettings] = useState({
-    currency: 'ETB',
-    timezone: 'Africa/Addis_Ababa',
-    dateFormat: 'DD/MM/YYYY',
-    lowStockThreshold: 5,
-    invoicePrefix: 'INV',
-    taxRate: 15,
-    lowStockNotifications: true,
-    emailNotifications: true,
-  });
+  const [settings, setSettings] = useState(DEFAULT_SETTINGS);
 
   const [settingsForm, setSettingsForm] = useState(settings);
 
@@ -229,7 +254,7 @@ const CompanyManagement = () => {
     });
   };
 
-  const getInitials = (name) => {
+  const getInitials = (name = '') => {
     return name
       .split(' ')
       .map((part) => part[0])
@@ -303,29 +328,39 @@ const CompanyManagement = () => {
   const validateCompanyForm = () => {
     const newErrors = {};
 
-    if (!formData.companyName.trim()) {
+    const companyName = formData.companyName.trim();
+    if (companyName.length < 2 || companyName.length > 150) {
       newErrors.companyName =
-        'Company name is required.';
+        'Company name must be between 2 and 150 characters.';
     }
 
-    if (!formData.email.trim()) {
+    const email = formData.email.trim();
+    if (!email) {
       newErrors.email =
         'Business email is required.';
     } else if (
-      !/^\S+@\S+\.\S+$/.test(formData.email)
+      !/^\S+@\S+\.\S+$/.test(email)
     ) {
       newErrors.email =
         'Please enter a valid email address.';
+    } else if (email.length > 150) {
+      newErrors.email = 'Business email must not exceed 150 characters.';
     }
 
-    if (!formData.phone.trim()) {
+    const phone = formData.phone.trim();
+    if (!phone) {
       newErrors.phone =
         'Phone number is required.';
+    } else if (phone.length > 30) {
+      newErrors.phone = 'Phone number must not exceed 30 characters.';
     }
 
-    if (!formData.address.trim()) {
+    const address = formData.address.trim();
+    if (!address) {
       newErrors.address =
         'Business address is required.';
+    } else if (address.length > 300) {
+      newErrors.address = 'Business address must not exceed 300 characters.';
     }
 
     setErrors(newErrors);
@@ -339,10 +374,6 @@ const CompanyManagement = () => {
     if (!validateCompanyForm()) return;
 
     setIsSaving(true);
-
-    await new Promise((resolve) =>
-      setTimeout(resolve, 700)
-    );
 
     try {
       // Build payload with email included
@@ -397,7 +428,29 @@ const CompanyManagement = () => {
       setIsEditModalOpen(false);
       showNotification('success', 'Company information updated successfully.');
     } catch (saveError) {
-      showNotification('error', saveError?.response?.data?.message || 'Unable to update company profile.');
+      const validationErrors = saveError?.response?.data?.errors || [];
+      if (validationErrors.length) {
+        const fields = {
+          name: 'companyName',
+          contactEmail: 'email',
+          contactPhone: 'phone',
+        };
+        setErrors((previous) => ({
+          ...previous,
+          ...Object.fromEntries(
+            validationErrors
+              .filter((item) => fields[item.field || item.path || item.param])
+              .map((item) => [
+                fields[item.field || item.path || item.param],
+                item.message,
+              ])
+          ),
+        }));
+      }
+      showNotification(
+        'error',
+        getApiErrorMessage(saveError, 'Unable to update company profile.')
+      );
     } finally {
       setIsSaving(false);
       // release any object URLs created for previews
@@ -495,13 +548,45 @@ const CompanyManagement = () => {
     if (!validateSettings()) return;
 
     setIsSavingSettings(true);
+    try {
+      const savedProfile = await companyService.updateProfile({
+        settings: {
+          ...settingsForm,
+          lowStockThreshold: Number(settingsForm.lowStockThreshold),
+          taxRate: Number(settingsForm.taxRate),
+        },
+      });
+      const savedSettings = {
+        ...DEFAULT_SETTINGS,
+        ...(savedProfile?.settings || settingsForm),
+      };
 
-    await new Promise((resolve) =>
-      setTimeout(resolve, 700)
-    );
-
-    setIsSavingSettings(false);
-    showNotification('error', 'Business settings are not supported by the backend.');
+      setSettings(savedSettings);
+      setSettingsForm(savedSettings);
+      setCompany((previous) => ({ ...previous, ...savedProfile }));
+      showNotification('success', 'Business settings saved successfully.');
+    } catch (saveError) {
+      const validationErrors = saveError?.response?.data?.errors || [];
+      if (validationErrors.length) {
+        setSettingsErrors((previous) => ({
+          ...previous,
+          ...Object.fromEntries(
+            validationErrors
+              .filter((item) => (item.field || item.path || item.param || '').startsWith('settings.'))
+              .map((item) => [
+                (item.field || item.path || item.param).slice('settings.'.length),
+                item.message,
+              ])
+          ),
+        }));
+      }
+      showNotification(
+        'error',
+        getApiErrorMessage(saveError, 'Unable to save business settings.')
+      );
+    } finally {
+      setIsSavingSettings(false);
+    }
   };
 
   const handleResetSettings = () => {
@@ -579,13 +664,30 @@ const CompanyManagement = () => {
 
           <button
             onClick={handleOpenEdit}
+            disabled={isLoading || Boolean(loadError)}
             className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
           >
             <FiEdit2 size={16} />
-            Edit Company
+            {isLoading ? 'Loading Company...' : 'Edit Company'}
           </button>
 
         </div>
+
+        {loadError && (
+          <div className="mb-6 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
+            <FiAlertCircle className="mt-0.5 shrink-0" size={18} />
+            <div>
+              <p className="font-semibold">Company profile could not be loaded.</p>
+              <p className="mt-1">{loadError} Refresh the page and try again.</p>
+            </div>
+          </div>
+        )}
+
+        {isLoading && (
+          <div className="mb-6 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-700" role="status">
+            Loading company profile and settings...
+          </div>
+        )}
 
         {/* ====================================================
             COMPANY HERO CARD
@@ -1300,8 +1402,8 @@ const CompanyManagement = () => {
                   <button
                     type="button"
                     onClick={handleResetSettings}
-                    disabled={isSavingSettings}
-                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                    disabled={isLoading || Boolean(loadError) || isSavingSettings}
+                    className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     <FiRotateCcw size={16} />
                     Reset
@@ -1309,7 +1411,7 @@ const CompanyManagement = () => {
 
                   <button
                     type="submit"
-                    disabled={isSavingSettings}
+                    disabled={isLoading || Boolean(loadError) || isSavingSettings}
                     className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
                   >
                     {isSavingSettings ? (

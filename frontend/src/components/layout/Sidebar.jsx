@@ -7,8 +7,6 @@ import {
   FiTruck,
   FiShoppingCart,
   FiDollarSign,
-  FiBarChart2,
-  FiSettings,
   FiBell,
   FiBriefcase 
 } from 'react-icons/fi';
@@ -55,12 +53,6 @@ const Sidebar = ({ isOpen, onClose }) => {
       anyPermissions: ['sales.view', 'sales.create'],
     },
     {
-      path: '/reports',
-      label: 'Reports',
-      icon: FiBarChart2,
-      permission: 'reports.view',
-    },
-    {
       path: '/company',
       label: 'Company',
       icon: FiBriefcase,
@@ -85,14 +77,6 @@ const Sidebar = ({ isOpen, onClose }) => {
       label: 'Stock Movements',
       icon: FiPackage,
       permission: 'stockMovements.view',
-    },
-    {
-      path: '/settings',
-      label: 'Settings',
-      icon: FiSettings,
-      // Settings - only for Shop Owners and Super Admins
-      permission: null,
-      roleCheck: () => isShopOwner || isSuperAdmin,
     },
   ];
 

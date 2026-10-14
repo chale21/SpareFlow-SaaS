@@ -6,7 +6,6 @@ const adminMenu = [
   { path: '/admin/companies', label: 'Companies', icon: '🏢' },
   { path: '/admin/users', label: 'Users', icon: '👥' },
   { path: '/admin/system-logs', label: 'System Logs', icon: '📋' },
-  { path: '/admin/settings', label: 'Settings', icon: '⚙️' },
 ];
 
 const AdminLayout = ({ children }) => {

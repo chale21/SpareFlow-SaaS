@@ -52,6 +52,48 @@ const companySchema = new mongoose.Schema(
       trim: true,
       maxlength: 200
     },
+    settings: {
+      currency: {
+        type: String,
+        enum: ['ETB', 'USD', 'EUR', 'GBP'],
+        default: 'ETB'
+      },
+      timezone: {
+        type: String,
+        default: 'Africa/Addis_Ababa',
+        maxlength: 100
+      },
+      dateFormat: {
+        type: String,
+        enum: ['DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD'],
+        default: 'DD/MM/YYYY'
+      },
+      lowStockThreshold: {
+        type: Number,
+        min: 0,
+        default: 5
+      },
+      invoicePrefix: {
+        type: String,
+        trim: true,
+        default: 'INV',
+        maxlength: 20
+      },
+      taxRate: {
+        type: Number,
+        min: 0,
+        max: 100,
+        default: 15
+      },
+      lowStockNotifications: {
+        type: Boolean,
+        default: true
+      },
+      emailNotifications: {
+        type: Boolean,
+        default: true
+      }
+    },
     isDeleted: {
       type: Boolean,
       default: false
@@ -65,6 +107,16 @@ const companySchema = new mongoose.Schema(
     timestamps: true
   }
 );
+
+companySchema.pre('validate', function (next) {
+  if (typeof this.status === 'string') {
+    this.status = this.status.toUpperCase();
+  }
+  if (typeof this.subscriptionPlan === 'string') {
+    this.subscriptionPlan = this.subscriptionPlan.toUpperCase();
+  }
+  next();
+});
 
 companySchema.pre('save', function (next) {
   if (!this.slug && this.name) {

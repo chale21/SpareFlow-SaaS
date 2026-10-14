@@ -721,7 +721,7 @@ const Sales = () => {
                   }
                   maxLength={100}
                   placeholder="Optional"
-                  className="input"
+                  className="input input border border-gray-300 rounded-md px-3 py-2 focus:border-blue-500 focus:outline-none"
                 />
               </Field>
 
@@ -734,7 +734,7 @@ const Sales = () => {
                       event.target.value
                     )
                   }
-                  className="input"
+                  className="input input border border-gray-300 rounded-md px-3 py-2 focus:border-blue-500 focus:outline-none"
                 >
                   {paymentMethods.map(
                     (method) => (
@@ -762,7 +762,7 @@ const Sales = () => {
                   }
                   placeholder="Optional sale notes"
                   rows={3}
-                  className="input resize-y"
+                  className="input input border border-gray-300 rounded-md px-3 py-2 focus:border-blue-500 focus:outline-none"
                 />
               </Field>
 

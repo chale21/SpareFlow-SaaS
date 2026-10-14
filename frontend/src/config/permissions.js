@@ -103,13 +103,6 @@ export const PERMISSION_GROUPS = {
       { key: 'staff.permissions.manage', label: 'Manage Permissions' }
     ]
   },
-  
-  reports: {
-    label: 'Reports',
-    permissions: [
-      { key: 'reports.view', label: 'View Reports' }
-    ]
-  }
 };
 
 /**

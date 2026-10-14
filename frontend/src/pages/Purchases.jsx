@@ -2684,7 +2684,7 @@ const Purchases = () => {
                 </div>
 
 
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto overflow-visible">
 
                   <table className="w-full min-w-[620px]">
 
